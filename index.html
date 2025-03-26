@@ -4,7 +4,7 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SNAPmapTX Visualization</title>
+    <title>SNAP Map Texas!</title>
     <style>
         /* Base styling with a forest green palette */
         body {
@@ -73,17 +73,17 @@
         d3.csv("data.csv").then(data => {
             // Parse numerical values
             data.forEach(d => {
-                d.Latitude = +d.Latitude;
-                d.Longitude = +d.Longitude;
+                d.X = parseFloat(d.X);
+                d.Y = parseFloat(d.Y);
             });
             
-            // Create scales based on longitude and latitude
+            // Create scales based on X and Y
             const xScale = d3.scaleLinear()
-            .domain(d3.extent(data, d => d.Longitude)).nice()
+            .domain(d3.extent(data, d => d.X)).nice()
             .range([0, innerWidth]);
             
             const yScale = d3.scaleLinear()
-            .domain(d3.extent(data, d => d.Latitude)).nice()
+            .domain(d3.extent(data, d => d.Y)).nice()
             .range([innerHeight, 0]);
             
             // Append X axis
@@ -104,8 +104,8 @@
             .data(data)
             .enter()
             .append("circle")
-            .attr("cx", d => xScale(d.Longitude))
-            .attr("cy", d => yScale(d.Latitude))
+            .attr("cx", d => xScale(d.X))
+            .attr("cy", d => yScale(d.Y))
             .attr("r", 6)
             .attr("fill", "#2E8B57")
             .attr("stroke", "#1b4d3e")
