@@ -206,7 +206,7 @@
                     .attr("cy", d => newYScale(d.Y))
                     .attr("r", function() {
                         const radius = d3.select(this).attr("r");
-                        return radius * 1.5;
+                        return radius + 1;
                     });
                 });
                 
