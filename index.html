@@ -2,13 +2,11 @@
 <html lang="en">
 <head>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <!-- Importing the modern Roboto font -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SNAP Map Texas!</title>
     <style>
-        /* Vibrant color palette that grabs attention */
         body {
             margin: 0;
             font-family: 'Roboto', sans-serif;
@@ -83,12 +81,9 @@
     </header>
     <button id="zoomOut" style="display:none;">Zoom Out</button>
     <div class="chart-container">
-        <!-- Fixed viewBox dimensions ensure consistent scaling and centering -->
         <svg viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
     <div class="tooltip" id="tooltip"></div>
-    
-    <!-- Load D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script>
         const viewBoxWidth = 800;
@@ -96,40 +91,25 @@
         const margin = { top: 40, right: 40, bottom: 60, left: 40 };
         const innerWidth = viewBoxWidth - margin.left - margin.right;
         const innerHeight = viewBoxHeight - margin.top - margin.bottom;
-        
         const svg = d3.select("svg");
-        // Create an outer group that applies the margins
         const outerG = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-        // Create a group for the zoomable plot
         const plotGroup = outerG.append("g");
-        
         const tooltip = d3.select("#tooltip");
-        
         d3.csv("data.csv").then(data => {
             data.forEach(d => {
                 d.X = parseFloat(d.X);
                 d.Y = parseFloat(d.Y);
             });
-            
             const xExtent = d3.extent(data, d => d.X);
             const yExtent = d3.extent(data, d => d.Y);
-            
             const xRange = xExtent[1] - xExtent[0];
             const yRange = yExtent[1] - yExtent[0];
-            
-            // Calculate a common scale to preserve the aspect ratio of the Texas shape
             const scale = Math.min(innerWidth / xRange, innerHeight / yRange);
-            // Calculate offsets to center the shape within the inner drawing area
             const offsetX = (innerWidth - xRange * scale) / 2;
             const offsetY = (innerHeight - yRange * scale) / 2;
-            
-            // Define scales as functions using the common scale factor
             const xScale = d => (d - xExtent[0]) * scale + offsetX;
-            // Invert Y so that smaller values appear at the bottom
             const yScale = d => innerHeight - ((d - yExtent[0]) * scale + offsetY);
-            
-            // Draw circles for each store location
             plotGroup.selectAll("circle")
             .data(data)
             .enter()
@@ -159,22 +139,16 @@
                 tooltip.transition().duration(200).style("opacity", 0);
             })
             .on("click", function(event, d) {
-                // Get the clicked circle's coordinates
                 const cx = xScale(d.X);
                 const cy = yScale(d.Y);
-                const zoomScale = 2; // Define a zoom-in scale factor
-                // Calculate translation values to center the clicked point in the inner drawing area
+                const zoomScale = 2;
                 const tx = innerWidth / 2 - zoomScale * cx;
                 const ty = innerHeight / 2 - zoomScale * cy;
-                // Apply the zoom transformation to the plotGroup
                 plotGroup.transition().duration(750)
                 .attr("transform", "translate(" + tx + "," + ty + ") scale(" + zoomScale + ")");
-                // Display the Zoom Out button
                 d3.select("#zoomOut").style("display", "block");
             });
-            
-            // Zoom Out button: Reset the transformation on the plotGroup
-            d3.select("#zoomOut").on("click", function() {
+                d3.select("#zoomOut").on("click", function() {
                 plotGroup.transition().duration(750)
                 .attr("transform", "translate(0,0) scale(1)");
                 d3.select(this).style("display", "none");
