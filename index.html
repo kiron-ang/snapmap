@@ -17,6 +17,7 @@
       align-items: center;
       padding: 20px;
       min-height: 100vh;
+      position: relative;
     }
     header {
       text-align: center;
@@ -69,6 +70,18 @@
       font-size: 1em;
       z-index: 1000;
     }
+    /* Footer credit */
+    footer {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 0.9em;
+      color: #fff;
+      background: rgba(0,0,0,0.5);
+      padding: 5px 0;
+      z-index: 1000;
+    }
   </style>
 </head>
 <body>
@@ -76,8 +89,8 @@
     <h1>SNAP Map Texas!</h1>
     <p>
       Below are retailers in Texas that accept SNAP.
-      Hover over a point for detailed store information, and click on a point to zoom in for a closer look.
-      Use the Zoom Out button to return to the full view.
+      Hover over a dot for more information on that retailer.
+      Click on a dot to zoom in.
     </p>
   </header>
   <button id="zoomOut" style="display:none;">Zoom Out</button>
@@ -85,6 +98,7 @@
     <svg viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
   <div class="tooltip" id="tooltip"></div>
+  <footer>This interactive data visualization was created by Kiron Ang</footer>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script>
     const viewBoxWidth = 800;
@@ -94,15 +108,15 @@
     const innerHeight = viewBoxHeight - margin.top - margin.bottom;
     
     const svg = d3.select("svg");
-    // Create an outer group to account for margins.
+    // Create an outer group for margins.
     const outerG = svg.append("g")
                       .attr("transform", `translate(${margin.left},${margin.top})`);
-    // This group will hold the plotted circles.
+    // This group holds the circles.
     const plotGroup = outerG.append("g");
     
     const tooltip = d3.select("#tooltip");
 
-    // Global variables to store original scales for later use.
+    // Global variables for the original scales.
     let xScaleOriginal, yScaleOriginal;
 
     d3.csv("data.csv").then(data => {
@@ -111,7 +125,7 @@
         d.Y = parseFloat(d.Y);
       });
       
-      // Determine data extents
+      // Data extents.
       const xExtent = d3.extent(data, d => d.X);
       const yExtent = d3.extent(data, d => d.Y);
       const xRange = xExtent[1] - xExtent[0];
@@ -120,17 +134,16 @@
       const offsetX = (innerWidth - xRange * scaleFactor) / 2;
       const offsetY = (innerHeight - yRange * scaleFactor) / 2;
       
-      // Create original linear scales mapping data domain to SVG coordinates.
+      // Original scales.
       xScaleOriginal = d3.scaleLinear()
                          .domain(xExtent)
                          .range([offsetX, offsetX + xRange * scaleFactor]);
       
       yScaleOriginal = d3.scaleLinear()
                          .domain(yExtent)
-                         // Invert the range for SVG (y increases downward)
                          .range([innerHeight - offsetY, innerHeight - offsetY - yRange * scaleFactor]);
       
-      // Plot circles for each data point.
+      // Plot the circles.
       plotGroup.selectAll("circle")
         .data(data)
         .join("circle")
@@ -157,48 +170,44 @@
           tooltip.transition().duration(200).style("opacity", 0);
         })
         .on("click", function(event, d) {
-          // On click, use the current zoom transform to recalculate scales
-          // and update the positions so that points spread apart.
-          const t = event.transform || d3.zoomTransform(svg.node());
-          const newXScale = t.rescaleX(xScaleOriginal);
-          const newYScale = t.rescaleY(yScaleOriginal);
-          plotGroup.selectAll("circle")
-            .transition().duration(750)
-            .attr("cx", d => newXScale(d.X))
-            .attr("cy", d => newYScale(d.Y));
-          // Show the Zoom Out button.
+          // Prevent propagation so only one click is registered.
+          event.stopPropagation();
+          // Get current transform.
+          const currentTransform = d3.zoomTransform(svg.node());
+          // Double the current scale factor.
+          const newScale = currentTransform.k * 2;
+          // Compute the original coordinates for the clicked point.
+          const cx = xScaleOriginal(d.X);
+          const cy = yScaleOriginal(d.Y);
+          // Calculate translation so that the clicked point becomes centered.
+          const tx = viewBoxWidth / 2 - newScale * cx;
+          const ty = viewBoxHeight / 2 - newScale * cy;
+          const newTransform = d3.zoomIdentity.translate(tx, ty).scale(newScale);
+          // Transition to the new transform.
+          svg.transition().duration(750).call(zoomBehavior.transform, newTransform);
           d3.select("#zoomOut").style("display", "block");
         });
       
-      // Define a zoom behavior.
+      // Define zoom behavior with no upper limit.
       const zoomBehavior = d3.zoom()
-        .scaleExtent([1, 10])
+        .scaleExtent([1, Infinity])
         .on("zoom", (event) => {
-          // Instead of transforming the whole group,
-          // rescale the original scales.
+          // Rescale original scales.
           const newXScale = event.transform.rescaleX(xScaleOriginal);
           const newYScale = event.transform.rescaleY(yScaleOriginal);
-          // Update the positions of the circles.
+          // Update circle positions.
           plotGroup.selectAll("circle")
             .attr("cx", d => newXScale(d.X))
             .attr("cy", d => newYScale(d.Y));
-          // (If you had axes, update them here as well.)
         });
       
-      // Apply zoom behavior to the SVG.
+      // Apply zoom behavior.
       svg.call(zoomBehavior);
       
-      // Zoom Out button behavior:
+      // Zoom Out button resets transform.
       d3.select("#zoomOut").on("click", function() {
-        // Reset zoom to identity.
         svg.transition().duration(750)
            .call(zoomBehavior.transform, d3.zoomIdentity);
-        // Reset circle positions to original scales.
-        plotGroup.selectAll("circle")
-          .transition().duration(750)
-          .attr("cx", d => xScaleOriginal(d.X))
-          .attr("cy", d => yScaleOriginal(d.Y));
-        // Hide the Zoom Out button.
         d3.select(this).style("display", "none");
       });
     })
