@@ -153,7 +153,7 @@
                 .join("circle")
                 .attr("cx", d => xScaleOriginal(d.X))
                 .attr("cy", d => yScaleOriginal(d.Y))
-                .attr("r", 2)
+                .attr("r", 3)
                 .attr("fill", "#D32F2F")
                 .on("mouseover", function(event, d) {
                     d3.select(this).attr("fill", "#fff");
@@ -203,11 +203,7 @@
                     // Update circle positions.
                     plotGroup.selectAll("circle")
                     .attr("cx", d => newXScale(d.X))
-                    .attr("cy", d => newYScale(d.Y))
-                    .attr("r", function() {
-                        const radius = d3.select(this).attr("r");
-                        return radius + 1;
-                    });
+                    .attr("cy", d => newYScale(d.Y));
                 });
                 
                 // Apply zoom behavior.
