@@ -116,7 +116,7 @@
             .append("circle")
             .attr("cx", d => xScale(d.X))
             .attr("cy", d => yScale(d.Y))
-            .attr("r", 1)
+            .attr("r", 2)
             .attr("fill", "#D32F2F")
             .on("mouseover", function(event, d) {
                 d3.select(this).attr("fill", "#fff");
@@ -139,7 +139,7 @@
             .on("click", function(event, d) {
                 const cx = xScale(d.X);
                 const cy = yScale(d.Y);
-                const zoomScale = 2;
+                const zoomScale = 10;
                 const tx = innerWidth / 2 - zoomScale * cx;
                 const ty = innerHeight / 2 - zoomScale * cy;
                 plotGroup.transition().duration(750)
