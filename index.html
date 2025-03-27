@@ -204,7 +204,11 @@
                     // Update circle positions.
                     plotGroup.selectAll("circle")
                     .attr("cx", d => newXScale(d.X))
-                    .attr("cy", d => newYScale(d.Y));
+                    .attr("cy", d => newYScale(d.Y))
+                    .attr("r", d => function() {
+                        const radius = d3.select(this).attr("r");
+                        return radius * 1.5;
+                    });
                 });
                 
                 // Apply zoom behavior.
