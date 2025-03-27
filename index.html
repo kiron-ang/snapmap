@@ -1,139 +1,132 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SNAP Map Texas!</title>
-    <style>
-        /* Base styling with a forest green palette */
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f0f5f0;
-            color: #1b4d3e;
-        }
-        .chart-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            height: 100vh;
-        }
-        svg {
-            width: 90%;
-            height: 90%;
-        }
-        /* Tooltip style */
-        .tooltip {
-            position: absolute;
-            background-color: rgba(27, 77, 62, 0.8);
-            color: #fff;
-            padding: 8px;
-            border-radius: 4px;
-            pointer-events: none;
-            font-size: 12px;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        /* Axis styling */
-        .axis line,
-        .axis path {
-            stroke: #1b4d3e;
-        }
-        .axis text {
-            fill: #1b4d3e;
-        }
-    </style>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SNAP Map Texas!</title>
+  <style>
+    /* Base styling with a forest green palette */
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f0f5f0;
+      color: #1b4d3e;
+    }
+    .chart-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 100vh;
+    }
+    /* Set SVG to responsively scale using viewBox */
+    svg {
+      width: 90%;
+      height: 90%;
+    }
+    /* Tooltip style */
+    .tooltip {
+      position: absolute;
+      background-color: rgba(27, 77, 62, 0.8);
+      color: #fff;
+      padding: 8px;
+      border-radius: 4px;
+      pointer-events: none;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+  </style>
 </head>
 <body>
-    <div class="chart-container">
-        <svg></svg>
-    </div>
-    <div class="tooltip" id="tooltip"></div>
+  <div class="chart-container">
+    <!-- Added viewBox and preserveAspectRatio for responsive scaling -->
+    <svg viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+  <div class="tooltip" id="tooltip"></div>
+  
+  <!-- Load D3.js -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    const svg = d3.select("svg");
+    // Get the dimensions from the SVG's bounding box
+    const { width, height } = svg.node().getBoundingClientRect();
+    const margin = { top: 40, right: 40, bottom: 60, left: 40 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
     
-    <!-- Load D3.js -->
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script>
-        const svg = d3.select("svg");
-        const width = parseInt(svg.style("width"));
-        const height = parseInt(svg.style("height"));
-        const margin = { top: 40, right: 40, bottom: 60, left: 60 };
-        const innerWidth = width - margin.left - margin.right;
-        const innerHeight = height - margin.top - margin.bottom;
-        
-        // Create a group element for margins
-        const g = svg.append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-        
-        // Create tooltip element
-        const tooltip = d3.select("#tooltip");
-        
-        // Load CSV data from the same directory ("data.csv")
-        d3.csv("data.csv").then(data => {
-            // Parse numerical values
-            data.forEach(d => {
-                d.X = parseFloat(d.X);
-                d.Y = parseFloat(d.Y);
-            });
-            
-            // Create scales based on X and Y
-            const xScale = d3.scaleLinear()
-            .domain(d3.extent(data, d => d.X)).nice()
-            .range([0, innerWidth]);
-            
-            const yScale = d3.scaleLinear()
-            .domain(d3.extent(data, d => d.Y)).nice()
-            .range([innerHeight, 0]);
-            
-            // Append X axis
-            const xAxis = d3.axisBottom(xScale);
-            g.append("g")
-            .attr("class", "axis")
-            .attr("transform", "translate(0," + innerHeight + ")")
-            .call(xAxis);
-            
-            // Append Y axis
-            const yAxis = d3.axisLeft(yScale);
-            g.append("g")
-            .attr("class", "axis")
-            .call(yAxis);
-            
-            // Create circles for each store location
-            g.selectAll("circle")
-            .data(data)
-            .enter()
-            .append("circle")
-            .attr("cx", d => xScale(d.X))
-            .attr("cy", d => yScale(d.Y))
-            .attr("r", 6)
-            .attr("fill", "#2E8B57")
-            .attr("stroke", "#1b4d3e")
-            .attr("stroke-width", 1.5)
-            .on("mouseover", function(event, d) {
-                d3.select(this)
-                .transition()
-                .duration(200)
-                .attr("r", 10);
-                tooltip.transition().duration(200)
-                .style("opacity", 1);
-                tooltip.html("<strong>" + d.Store_Name + "</strong><br/>" +
-                d.City + ", " + d.State)
-                .style("left", (event.pageX + 10) + "px")
-                .style("top", (event.pageY - 28) + "px");
-            })
-            .on("mouseout", function(event, d) {
-                d3.select(this)
-                .transition()
-                .duration(200)
-                .attr("r", 6);
-                tooltip.transition().duration(200)
-                .style("opacity", 0);
-            });
+    // Create a group element for margins
+    const g = svg.append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    
+    // Create tooltip element
+    const tooltip = d3.select("#tooltip");
+    
+    d3.csv("data.csv").then(data => {
+      // Parse numerical values
+      data.forEach(d => {
+        d.X = parseFloat(d.X);
+        d.Y = parseFloat(d.Y);
+      });
+      
+      // Get the data extents
+      const xExtent = d3.extent(data, d => d.X);
+      const yExtent = d3.extent(data, d => d.Y);
+      
+      // Calculate the data ranges
+      const xRange = xExtent[1] - xExtent[0];
+      const yRange = yExtent[1] - yExtent[0];
+      
+      // Calculate a common scale to preserve aspect ratio
+      const scale = Math.min(innerWidth / xRange, innerHeight / yRange);
+      
+      // Calculate offsets to center the shape within the inner drawing area
+      const offsetX = (innerWidth - xRange * scale) / 2;
+      const offsetY = (innerHeight - yRange * scale) / 2;
+      
+      // Define scales as functions using the common scale factor
+      const xScale = d => (d - xExtent[0]) * scale + offsetX;
+      // Note: For y, we invert the scale so the smaller values appear at the bottom.
+      const yScale = d => innerHeight - ((d - yExtent[0]) * scale + offsetY);
+      
+      // Create circles for each store location (axes have been removed)
+      g.selectAll("circle")
+        .data(data)
+        .enter()
+        .append("circle")
+        .attr("cx", d => xScale(d.X))
+        .attr("cy", d => yScale(d.Y))
+        .attr("r", 6)
+        .attr("fill", "#2E8B57")
+        .attr("stroke", "#1b4d3e")
+        .attr("stroke-width", 1.5)
+        .on("mouseover", function(event, d) {
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .attr("r", 10);
+          tooltip.transition()
+            .duration(200)
+            .style("opacity", 1);
+          tooltip.html("<strong>" + d.Store_Name + "</strong><br/>" +
+                       d.City + ", " + d.State)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 28) + "px");
         })
-        .catch(error => {
-            console.error("Error loading the CSV file:", error);
+        .on("mouseout", function(event, d) {
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .attr("r", 6);
+          tooltip.transition()
+            .duration(200)
+            .style("opacity", 0);
         });
-    </script>
+    })
+    .catch(error => {
+      console.error("Error loading the CSV file:", error);
+    });
+  </script>
 </body>
 </html>
