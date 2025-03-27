@@ -191,6 +191,7 @@
       // Define zoom behavior with no upper limit.
       const zoomBehavior = d3.zoom()
         .scaleExtent([1, Infinity])
+        .filter((event) => event.type !== 'wheel')
         .on("zoom", (event) => {
           // Rescale original scales.
           const newXScale = event.transform.rescaleX(xScaleOriginal);
