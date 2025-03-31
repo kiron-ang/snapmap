@@ -168,12 +168,15 @@
                 const nearestStores = getNearestStores(filteredData);
                 plotRetailers(nearestStores);
                 const firstRetailer = filteredData[0];
-                const [long, lat] = [firstRetailer.Longitude, firstRetailer.Latitude];
-                const [x, y] = projection([+long, +lat]);
-                svg.transition().duration(750).call(
-                    zoom.transform,
-                    d3.zoomIdentity.translate(width / 2, height / 2).scale(5).translate(-x, -y)
-                );
+                const [long, lat] = [+firstRetailer.Longitude, +firstRetailer.Latitude];
+                const [x, y] = projection([long, lat]);
+                const scale = 5; // Adjust this scale value as necessary to fit the filtered area
+                svg.transition()
+                    .duration(750)
+                    .call(
+                        zoom.transform,
+                        d3.zoomIdentity.translate(width / 2, height / 2).scale(scale).translate(-x, -y)
+                    );
             } else {
                 alert("No retailers found for this ZIP code.");
             }
@@ -186,9 +189,9 @@
             }));
 
             filteredData.forEach(store => {
-                const [storeLong, storeLat] = [store.Longitude, store.Latitude];
+                const [storeLong, storeLat] = [+store.Longitude, +store.Latitude];
                 allStores.forEach(d => {
-                    const distance = getDistance(storeLat, storeLong, d.Latitude, d.Longitude);
+                    const distance = getDistance(storeLat, storeLong, +d.Latitude, +d.Longitude);
                     if (distance < d.distance) {
                         d.distance = distance;
                     }
@@ -207,8 +210,7 @@
                       Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
                       Math.sin(dLon / 2) * Math.sin(dLon / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            const distance = R * c;
-            return distance;
+            return R * c;
         }
     </script>
 </body>
