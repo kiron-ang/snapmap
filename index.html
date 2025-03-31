@@ -73,11 +73,12 @@
                 .attr("height", height)
                 .call(zoom)
                 .on("click", function(event) {
+                    const transform = d3.zoomTransform(svg.node());
                     if (zoomLevel < 3) {
                         const [clickX, clickY] = d3.pointer(event);
                         const clickCoord = {
-                            X: x.invert(clickX),
-                            Y: y.invert(clickY)
+                            X: transform.invertX(clickX),
+                            Y: transform.invertY(clickY)
                         };
                         const distances = data.map(d => ({
                             ...d,
