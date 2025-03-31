@@ -5,22 +5,17 @@
     <style>
         body {
             background-color: #A47764;
+            color: #f1a7cd;
             display: flex;
             flex-direction: column;
             align-items: center;
             font-family: sans-serif;
-            color: #f1a7cd;
         }
         .list-container {
             width: 80%;
-            max-width: 800px;
-            margin-top: 20px;
-            background: #FFB082;
-            border-radius: 8px;
-            padding: 20px;
+            background: #7e212a;
         }
         .store-item {
-            padding: 10px;
             border-bottom: 1px solid #C37C54;
         }
         .store-item:last-child {
@@ -31,7 +26,6 @@
             font-size: 1.2em;
         }
         .store-details {
-            margin-top: 5px;
             font-size: 0.9em;
         }
     </style>
@@ -40,7 +34,7 @@
     <script type="module">
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
         const height = Math.min(window.innerWidth, window.innerHeight);
-        const margin = height * 0.04;
+        const margin = height * 0.02;
         
         d3.csv("data.csv", d3.autoType).then(data => {
             const x = d3.scaleLinear()
