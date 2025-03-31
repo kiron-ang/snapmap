@@ -10,14 +10,25 @@
             flex-direction: column;
             align-items: center;
         }
+        button {
+            margin: 10px;
+            padding: 10px;
+            background-color: #7e212a;
+            color: #a47764;
+            border: none;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <h4>TEST TEST TEST TEST TEST TEST TEST</h4>
+    <button id="zoomIn">Zoom In</button>
+    <button id="zoomOut">Zoom Out</button>
     <script type="module">
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
         const height = Math.min(window.innerWidth, window.innerHeight);
         const margin = height * 0.02;
+        const zoomLevel = { k: 1 };
         d3.csv("data.csv", d3.autoType).then(data => {
             const x = d3.scaleLinear()
             .domain(d3.extent(data, d => d.X)).nice()
@@ -27,35 +38,27 @@
             .range([height - margin, margin]);
             const svg = d3.create("svg")
             .attr("width", height)
-            .attr("height", height)
-            .on("click", function(event) {
-                const [clickX, clickY] = d3.pointer(event);
-                const clickCoord = {
-                    X: x.invert(clickX),
-                    Y: y.invert(clickY)
-                };
-                const distances = data.map(d => ({
-                    ...d,
-                    distance: Math.sqrt(Math.pow(d.X - clickCoord.X, 2) + Math.pow(d.Y - clickCoord.Y, 2))
-                }));
-                const closestPoints = distances
-                .sort((a, b) => a.distance - b.distance)
-                .slice(0, 10);
-                circles.attr("fill", "#7e212a");
-                closestPoints.forEach(point => {
-                    circles.filter(d => d.X === point.X && d.Y === point.Y)
-                    .attr("fill", "#F1A7CD");
-                });
-            });
+            .attr("height", height);
             const circles = svg.append("g")
             .selectAll("circle")
             .data(data)
             .join("circle")
             .attr("cx", d => x(d.X))
             .attr("cy", d => y(d.Y))
-            .attr("r", 3)
-            .attr("fill", "#EC6936");
+            .attr("r", 5)
+            .attr("fill", "#7e212a");
             document.body.append(svg.node());
+            const zoom = () => {
+                svg.attr("transform", `scale(${zoomLevel.k})`);
+            };
+            document.getElementById("zoomIn").addEventListener("click", () => {
+                zoomLevel.k *= 1.2;
+                zoom();
+            });
+            document.getElementById("zoomOut").addEventListener("click", () => {
+                zoomLevel.k /= 1.2;
+                zoom();
+            });
         });
     </script>
 </body>
