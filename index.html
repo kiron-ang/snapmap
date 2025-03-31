@@ -16,6 +16,7 @@
         const marginBottom = marginTop;
         const marginLeft = marginRight;
         
+        let data;
         d3.csv("data.csv").then(data => {
             data.forEach(d => {
                 d.X = +d.X;
