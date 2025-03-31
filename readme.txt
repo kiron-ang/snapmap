@@ -1,10 +1,10 @@
 Hi Dr. Wilkerson!
 
-I am writing to let you know that I created an interactive map website to answer the question, "Given a Texan's zip code, what ten SNAP retailers are closest to them?" The link for the website is kiron-ang.github.io/SNAPmapTX. An interactive map is the best approach for this question, because I want it to be user-friendly and useful based on an individual's context. Furthermore, I am unsatisfied with the current resources online for locating SNAP locations. The USDA's "SNAP Retailer Locator" is the best interactive and citizen-targeted resource available, and although it provides the information in a clear manner, it could benefit from a cleaner and more modern design.
+I am writing to let you know that I created an interactive map website to answer the question, "What areas in Texas are far away from the nearest SNAP retailers?" The link for the website is kiron-ang.github.io/SNAPmapTX. An interactive map is the best approach for this question, because by highlighting points based on where users click, it allows users to investigate on their own and make quick comparisons. I filtered the CSV file provided to keep only rows with Texas addresses.
 
-I first narrowed my focus to Texas. By plotting the features "X" and "Y" with the D3 library, I noticed that, thanks to the large size of the dataset, a dilated shape of Texas had formed. I removed three outliers with incorrect "X" and "Y" information that were outside the confines of Texas: Dime Box Grocery in Dime Box, TX; DOLLAR GENERAL 0353 in Madison, TX; and Dollar General 15022 in China, TX. Then, by setting both of the scales to confine themselves in a square, I created a recognizably Texas shape in the middle of the screen; this is true on any screen, including a phone.
+By plotting the features "X" and "Y" with the D3 library, I noticed that, thanks to the large size of the dataset, a dilated shape of Texas had formed. I removed three outliers with incorrect "X" and "Y" information that were outside the confines of Texas: Dime Box Grocery in Dime Box, TX; DOLLAR GENERAL 0353 in Madison, TX; and Dollar General 15022 in China, TX. Then, by setting both of the scales to confine themselves in a square, I created a recognizably Texas shape; this is true on any screen, including a phone.
 
-Then, I concentrated on the graphic design of the page. I used a color palette released by Pantone as part of their "Color of the Year" announcement. 
+After changing the colors to match a Pantone color palette, I centered the shape of Texas on the screen. The final and most challenging step was adding the interaction.
 
 Thank you for your time and evaluation.
 
