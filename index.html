@@ -6,19 +6,15 @@
 <body style="background-color: #A47664; display: flex; justify-content: center;">
     <script type="module">
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
-
         const height = Math.min(window.innerWidth, window.innerHeight);
         const margin = height * 0.04;
-
         d3.csv("data.csv", d3.autoType).then(data => {
             const x = d3.scaleLinear()
             .domain(d3.extent(data, d => d.X)).nice()
             .range([margin, height - margin]);
-
             const y = d3.scaleLinear()
             .domain(d3.extent(data, d => d.Y)).nice()
             .range([height - margin, margin]);
-
             const svg = d3.create("svg")
             .attr("width", height)
             .attr("height", height)
@@ -28,25 +24,19 @@
                     X: x.invert(clickX),
                     Y: y.invert(clickY)
                 };
-
                 const distances = data.map(d => ({
                     ...d,
                     distance: Math.sqrt(Math.pow(d.X - clickCoord.X, 2) + Math.pow(d.Y - clickCoord.Y, 2))
                 }));
-
                 const closestPoints = distances
                 .sort((a, b) => a.distance - b.distance)
                 .slice(0, 10);
-                
-                console.log('Closest points:', closestPoints);
-
-                circles.attr("fill", "none");
+                circles.attr("fill", "#7E212A");
                 closestPoints.forEach(point => {
                     circles.filter(d => d.X === point.X && d.Y === point.Y)
                     .attr("fill", "#F1A7CD");
                 });
             });
-
             const circles = svg.append("g")
             .selectAll("circle")
             .data(data)
@@ -55,7 +45,6 @@
             .attr("cy", d => y(d.Y))
             .attr("r", 3)
             .attr("fill", "#EC6936");
-
             document.body.append(svg.node());
         });
     </script>
