@@ -4,6 +4,8 @@ I am writing to let you know that I created an interactive map website to answer
 
 I first narrowed my focus to Texas. By plotting the features "X" and "Y" with the D3 library, I noticed that, thanks to the large size of the dataset, the shape of Texas had formed. I removed three outliers with incorrect "X" and "Y" information that were outside the confines of Texas: Dime Box Grocery in Dime Box, TX; DOLLAR GENERAL 0353 in Madison, TX; and Dollar General 15022 in China, TX.
 
+Then, I concentrated on the graphic design of the page. I started with choosing Pantone's Color of the Year, "Mocha Mousse", as my foundation for the rest of the visual identity of my site.
+
 Thank you for your time and evaluation.
 
 Sincerely,
