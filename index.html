@@ -4,26 +4,25 @@
     <title>SNAP Map Texas - Interactive Map Visualization by Kiron Ang</title>
 </head>
 <body style="background-color: #A47664; display: flex; justify-content: center;">
-    <input type="text" id="zip" placeholder="Enter your ZIP code!" />
     <script type="module">
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
-        
+
         const height = Math.min(window.innerWidth, window.innerHeight);
         const margin = height * 0.04
-        
+
         d3.csv("data.csv", d3.autoType).then(data => {
             const x = d3.scaleLinear()
             .domain(d3.extent(data, d => d.X)).nice()
             .range([margin, height - margin]);
-            
+
             const y = d3.scaleLinear()
             .domain(d3.extent(data, d => d.Y)).nice()
             .range([height - margin, margin]);
-            
+
             const svg = d3.create("svg")
             .attr("width", height)
             .attr("height", height);
-            
+
             svg.append("g")
             .attr("stroke", "#EC6936")
             .attr("stroke-width", 1)
@@ -34,8 +33,35 @@
             .attr("cx", d => x(d.X))
             .attr("cy", d => y(d.Y))
             .attr("r", 2);
-            
+
             document.body.append(svg.node());
+
+            if (zipCode) {
+                highlightAndZoom(zipCode);
+            }
+
+            function highlightAndZoom(zipCode) {
+                const selectedData = data.filter(d => d.ZipCode === zipCode);
+
+                circles.attr("fill", d => d.ZipCode === zipCode ? "#EC6936" : "none")
+                .attr("r", d => d.ZipCode === zipCode ? 4 : 2);
+
+                if (selectedData.length > 0) {
+                    const xExtent = d3.extent(selectedData, d => d.X);
+                    const yExtent = d3.extent(selectedData, d => d.Y);
+
+                    const zoomX = d3.scaleLinear()
+                    .domain(xExtent).nice()
+                    .range([margin, height - margin]);
+
+                    const zoomY = d3.scaleLinear()
+                    .domain(yExtent).nice()
+                    .range([height - margin, margin]);
+
+                    circles.attr("cx", d => zoomX(d.X))
+                    .attr("cy", d => zoomY(d.Y));
+                }
+            }
         });
     </script>
 </body>
