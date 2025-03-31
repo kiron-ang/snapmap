@@ -7,39 +7,35 @@
     <div id="container"></div>
     <script type="module">
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
-
-        const width = window.innerHeight;
-        const height = window.innerHeight;
-        const marginTop = height * 0.05;
-        const marginRight = width * 0.05;
-        const marginBottom = marginTop;
-        const marginLeft = marginRight;
-
+        
+        const height = Math.min(window.innerWidth, window.innerHeight);
+        const margin = height * 0.04
+        
         d3.csv("data.csv", d3.autoType).then(data => {
             const x = d3.scaleLinear()
-                .domain(d3.extent(data, d => d.X)).nice()
-                .range([marginLeft, width - marginRight]);
-
+            .domain(d3.extent(data, d => d.X)).nice()
+            .range([margin, height - margin]);
+            
             const y = d3.scaleLinear()
-                .domain(d3.extent(data, d => d.Y)).nice()
-                .range([height - marginBottom, marginTop]);
-
+            .domain(d3.extent(data, d => d.Y)).nice()
+            .range([height - margin, margin]);
+            
             const svg = d3.create("svg")
-                .attr("width", width)
-                .attr("height", height);
-
+            .attr("width", height)
+            .attr("height", height);
+            
             svg.append("g")
-                .attr("stroke", "#EC6936")
-                .attr("stroke-width", 1.5)
-                .attr("fill", "none")
-                .selectAll("circle")
-                .data(data)
-                .join("circle")
-                .attr("cx", d => x(d.X))
-                .attr("cy", d => y(d.Y))
-                .attr("r", 3);
-
-            document.getElementById("container").appendChild(svg.node());
+            .attr("stroke", "#EC6936")
+            .attr("stroke-width", 1)
+            .attr("fill", "none")
+            .selectAll("circle")
+            .data(data)
+            .join("circle")
+            .attr("cx", d => x(d.X))
+            .attr("cy", d => y(d.Y))
+            .attr("r", 2);
+            
+            container.append(svg.node());
         });
     </script>
 </body>
