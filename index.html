@@ -32,14 +32,14 @@
             .join("circle")
             .attr("cx", d => x(d.X))
             .attr("cy", d => y(d.Y))
-            .attr("r", 2);
+            .attr("r", 3);
 
             document.body.append(svg.node());
 
+            const zipCode = window.prompt("Please tell me your ZIP code so I can help you find SNAP retailers near you!");
             if (zipCode) {
                 highlightAndZoom(zipCode);
             }
-
             function highlightAndZoom(zipCode) {
                 const selectedData = data.filter(d => d.ZipCode === zipCode);
 
