@@ -103,6 +103,14 @@
 
         const path = d3.geoPath().projection(projection);
 
+        const zoom = d3.zoom()
+            .scaleExtent([1, 8])
+            .on("zoom", (event) => {
+                svg.attr("transform", event.transform);
+            });
+
+        svg.call(zoom);
+
         const tooltip = d3.select("body").append("div")
             .attr("class", "tooltip")
             .style("opacity", 0);
@@ -163,8 +171,8 @@
                 const [long, lat] = [firstRetailer.Longitude, firstRetailer.Latitude];
                 const [x, y] = projection([+long, +lat]);
                 svg.transition().duration(750).call(
-                    d3.zoom().transform,
-                    d3.zoomIdentity.translate(width / 2, height / 2).scale(5000).translate(-x, -y)
+                    zoom.transform,
+                    d3.zoomIdentity.translate(width / 2, height / 2).scale(5).translate(-x, -y)
                 );
             } else {
                 alert("No retailers found for this ZIP code.");

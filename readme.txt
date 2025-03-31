@@ -1,7 +1,7 @@
 Hi Dr. Wilkerson!
 
 I wanted to answer the question, "If I live in Texas, what SNAP 
-retailers can I go to?" I decided that the most effective response is
+retailers can I go to nearby?" I decided that the most effective response is
 a well-designed website: kiron-ang.github.io/SNAPmapTX.
 
 I began by plotting the features "X" and "Y" and noticed that, thanks
