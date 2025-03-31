@@ -1,225 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SNAP Map Texas!</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SNAP Retailers in Texas</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
         body {
-            margin: 0;
             font-family: 'Roboto', sans-serif;
-            background: linear-gradient(to bottom right, #FF4500, #dd9e17);
-            color: #fff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-            min-height: 100vh;
-            position: relative;
-        }
-        header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        header h1 {
             margin: 0;
-            font-size: 2.5em;
-            font-weight: 700;
+            padding: 0;
+            background-color: #f9f9f9;
         }
-        header p {
-            margin: 10px 0 0;
-            font-size: 1.2em;
-            font-weight: 400;
-        }
-        .chart-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
+
+        .map {
             width: 100%;
-            flex: 1;
+            height: 600px;
+            background-color: #ffffff;
+            border: 1px solid #dddddd;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            margin: 20px auto;
+            max-width: 1000px;
         }
-        svg {
-            width: 90%;
-            height: 90%;
-        }
+
         .tooltip {
             position: absolute;
-            background-color: rgba(0, 0, 0, 0.7);
-            color: #fff;
-            padding: 10px;
-            border-radius: 6px;
-            pointer-events: none;
-            font-size: 13px;
-            line-height: 1.4;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        /* Always visible Zoom Out button in bottom left */
-        #zoomOut {
-            position: fixed;
-            bottom: 30px;
-            left: 20px;
-            padding: 10px 20px;
-            background-color: rgba(0, 0, 0, 0.7);
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1em;
-            z-index: 1000;
-        }
-        /* Footer credit */
-        footer {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
             text-align: center;
-            font-size: 0.9em;
-            color: #fff;
-            background: rgba(0,0,0,0.5);
-            padding: 5px 0;
-            z-index: 1000;
+            width: 140px;
+            padding: 10px;
+            font: 12px 'Roboto', sans-serif;
+            background: #ffab40; /* Orange color */
+            border: 1px solid #ff6f00;
+            border-radius: 8px;
+            pointer-events: none;
+            color: #ffffff;
         }
-        footer a {
-            color: #fff;
+
+        h1 {
+            text-align: center;
+            color: #ff6f00; /* Dark orange color */
+            margin: 20px 0;
         }
     </style>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://unpkg.com/topojson@3"></script>
 </head>
 <body>
-    <header>
-        <h1>SNAP Map Texas!</h1>
-        <p>
-            Each dot is a SNAP retailer.
-            Hover over a dot for more information.
-            Click on a dot to zoom in.
-        </p>
-    </header>
-    <button id="zoomOut" style="display:none;">Zoom Out</button>
-    <div class="chart-container">
-        <svg viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet"></svg>
-    </div>
-    <div class="tooltip" id="tooltip"></div>
-    <footer><a href="https://github.com/kiron-ang" target="_blank" rel="noopener noreferrer">
-        This interactive data visualization was created by Kiron Ang</a></footer>
-        <script src="https://d3js.org/d3.v7.min.js"></script>
-        <script>
-            const viewBoxWidth = 800;
-            const viewBoxHeight = 600;
-            const margin = { top: 40, right: 40, bottom: 60, left: 40 };
-            const innerWidth = viewBoxWidth - margin.left - margin.right;
-            const innerHeight = viewBoxHeight - margin.top - margin.bottom;
-            
-            const svg = d3.select("svg");
-            // Create an outer group for margins.
-            const outerG = svg.append("g")
-            .attr("transform", `translate(${margin.left},${margin.top})`);
-            // This group holds the circles.
-            const plotGroup = outerG.append("g");
-            
-            const tooltip = d3.select("#tooltip");
-            
-            // Global variables for the original scales.
-            let xScaleOriginal, yScaleOriginal;
-            
+    <h1>SNAP Retailers in Texas</h1>
+    <div class="map" id="map"></div>
+    <script>
+        const width = 960;
+        const height = 600;
+
+        const svg = d3.select("#map").append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        const projection = d3.geoMercator()
+            .center([-99.9018, 31.9686]) // Center the map on Texas
+            .scale(2500)
+            .translate([width / 2, height / 2]);
+
+        const path = d3.geoPath().projection(projection);
+
+        const tooltip = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+        // Load and display the map
+        d3.json("https://d3js.org/us-10m.v1.json").then(us => {
+            svg.append("g")
+                .selectAll("path")
+                .data(topojson.feature(us, us.objects.states).features)
+                .enter().append("path")
+                .attr("d", path)
+                .attr("fill", "#eeeeee")
+                .attr("stroke", "#ffffff");
+
+            // Load SNAP retailer data
             d3.csv("data.csv").then(data => {
-                data.forEach(d => {
-                    d.X = parseFloat(d.X);
-                    d.Y = parseFloat(d.Y);
-                });
-                
-                // Data extents.
-                const xExtent = d3.extent(data, d => d.X);
-                const yExtent = d3.extent(data, d => d.Y);
-                const xRange = xExtent[1] - xExtent[0];
-                const yRange = yExtent[1] - yExtent[0];
-                const scaleFactor = Math.min(innerWidth / xRange, innerHeight / yRange);
-                const offsetX = (innerWidth - xRange * scaleFactor) / 2;
-                const offsetY = (innerHeight - yRange * scaleFactor) / 2;
-                
-                // Original scales.
-                xScaleOriginal = d3.scaleLinear()
-                .domain(xExtent)
-                .range([offsetX, offsetX + xRange * scaleFactor]);
-                
-                yScaleOriginal = d3.scaleLinear()
-                .domain(yExtent)
-                .range([innerHeight - offsetY, innerHeight - offsetY - yRange * scaleFactor]);
-                
-                // Plot the circles.
-                plotGroup.selectAll("circle")
-                .data(data)
-                .join("circle")
-                .attr("cx", d => xScaleOriginal(d.X))
-                .attr("cy", d => yScaleOriginal(d.Y))
-                .attr("r", 3)
-                .attr("fill", "#D32F2F")
-                .on("mouseover", function(event, d) {
-                    d3.select(this).attr("fill", "#fff");
-                    tooltip.transition().duration(200).style("opacity", 1);
-                    tooltip.html(
-                    "<strong>" + d.Store_Name + "</strong><br>" +
-                    (d.Store_Street_Address ? d.Store_Street_Address + "<br>" : "") +
-                    (d.Additonal_Address ? d.Additonal_Address + "<br>" : "") +
-                    d.City + ", " + d.State + " " + d.Zip_Code + "<br>" +
-                    "County: " + d.County + "<br>" +
-                    "Type: " + d.Store_Type
-                    )
-                    .style("left", (event.pageX + 10) + "px")
-                    .style("top", (event.pageY - 28) + "px");
-                })
-                .on("mouseout", function() {
-                    d3.select(this).attr("fill", "#D32F2F");
-                    tooltip.transition().duration(200).style("opacity", 0);
-                })
-                .on("click", function(event, d) {
-                    // Prevent propagation so only one click is registered.
-                    event.stopPropagation();
-                    // Get current transform.
-                    const currentTransform = d3.zoomTransform(svg.node());
-                    // Double the current scale factor.
-                    const newScale = currentTransform.k * 2;
-                    // Compute the original coordinates for the clicked point.
-                    const cx = xScaleOriginal(d.X);
-                    const cy = yScaleOriginal(d.Y);
-                    // Calculate translation so that the clicked point becomes centered.
-                    const tx = viewBoxWidth / 2 - newScale * cx;
-                    const ty = viewBoxHeight / 2 - newScale * cy;
-                    const newTransform = d3.zoomIdentity.translate(tx, ty).scale(newScale);
-                    // Transition to the new transform.
-                    svg.transition().duration(750).call(zoomBehavior.transform, newTransform);
-                    d3.select("#zoomOut").style("display", "block");
-                });
-                
-                // Define zoom behavior with no upper limit.
-                const zoomBehavior = d3.zoom()
-                .scaleExtent([1, Infinity])
-                .filter((event) => event.type !== 'wheel')
-                .on("zoom", (event) => {
-                    // Rescale original scales.
-                    const newXScale = event.transform.rescaleX(xScaleOriginal);
-                    const newYScale = event.transform.rescaleY(yScaleOriginal);
-                    // Update circle positions.
-                    plotGroup.selectAll("circle")
-                    .attr("cx", d => newXScale(d.X))
-                    .attr("cy", d => newYScale(d.Y));
-                });
-                
-                // Apply zoom behavior.
-                svg.call(zoomBehavior);
-                
-                // Zoom Out button resets transform.
-                d3.select("#zoomOut").on("click", function() {
-                    svg.transition().duration(750)
-                    .call(zoomBehavior.transform, d3.zoomIdentity);
-                    d3.select(this).style("display", "none");
-                });
-            })
-            .catch(error => {
-                console.error("Error loading the CSV file:", error);
+                svg.append("g")
+                    .selectAll("circle")
+                    .data(data)
+                    .enter().append("circle")
+                    .attr("cx", d => projection([+d.Longitude, +d.Latitude])[0])
+                    .attr("cy", d => projection([+d.Longitude, +d.Latitude])[1])
+                    .attr("r", 3)
+                    .attr("fill", "#ff6f00") // Dark orange color
+                    .on("mouseover", function(event, d) {
+                        tooltip.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+                        tooltip.html(`${d.Store_Name}<br>${d.Store_Street_Address}, ${d.City}`)
+                            .style("left", (event.pageX + 5) + "px")
+                            .style("top", (event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function(d) {
+                        tooltip.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    });
             });
-        </script>
-    </body>
-    </html>
-    
+        });
+
+    </script>
+</body>
+</html>
