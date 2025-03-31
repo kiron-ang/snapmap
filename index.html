@@ -35,18 +35,6 @@
             margin-top: 5px;
             font-size: 0.9em;
         }
-        .zoom-out-button {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 10px 20px;
-            background-color: #EC6936;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            display: none;
-        }
     </style>
 </head>
 <body>
@@ -54,7 +42,6 @@
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
         const height = Math.min(window.innerWidth, window.innerHeight);
         const margin = height * 0.04;
-        let zoomLevel = 0;
 
         d3.csv("data.csv", d3.autoType).then(data => {
             const x = d3.scaleLinear()
@@ -64,55 +51,32 @@
                 .domain(d3.extent(data, d => d.Y)).nice()
                 .range([height - margin, margin]);
 
-            const zoom = d3.zoom()
-                .scaleExtent([1, 8])
-                .on("zoom", zoomed);
-
             const svg = d3.create("svg")
                 .attr("width", height)
                 .attr("height", height)
-                .call(zoom)
                 .on("click", function(event) {
-                    const transform = d3.zoomTransform(svg.node());
-                    if (zoomLevel < 3) {
-                        const [clickX, clickY] = d3.pointer(event);
-                        const clickCoord = {
-                            X: transform.invertX(clickX),
-                            Y: transform.invertY(clickY)
-                        };
-                        const distances = data.map(d => ({
-                            ...d,
-                            distance: Math.sqrt(Math.pow(d.X - clickCoord.X, 2) + Math.pow(d.Y - clickCoord.Y, 2))
-                        }));
-                        const closestPoints = distances
-                            .sort((a, b) => a.distance - b.distance)
-                            .slice(0, 10);
-                        
-                        // Update the colors of the circles
-                        circles.attr("fill", "#7E212A");
-                        closestPoints.forEach(point => {
-                            circles.filter(d => d.X === point.X && d.Y === point.Y)
-                                .attr("fill", "#F1A7CD");
-                        });
+                    const [clickX, clickY] = d3.pointer(event);
+                    const clickCoord = {
+                        X: x.invert(clickX),
+                        Y: y.invert(clickY)
+                    };
+                    const distances = data.map(d => ({
+                        ...d,
+                        distance: Math.sqrt(Math.pow(d.X - clickCoord.X, 2) + Math.pow(d.Y - clickCoord.Y, 2))
+                    }));
+                    const closestPoints = distances
+                        .sort((a, b) => a.distance - b.distance)
+                        .slice(0, 10);
+                    
+                    // Update the colors of the circles
+                    circles.attr("fill", "#7E212A");
+                    closestPoints.forEach(point => {
+                        circles.filter(d => d.X === point.X && d.Y === point.Y)
+                            .attr("fill", "#F1A7CD");
+                    });
 
-                        // Update the store list
-                        updateStoreList(closestPoints);
-
-                        // Zoom in on the clicked location
-                        zoomLevel++;
-                        svg.transition().duration(750).call(
-                            zoom.transform,
-                            d3.zoomIdentity
-                                .translate(height / 2, height / 2)
-                                .scale(Math.pow(2, zoomLevel))
-                                .translate(-clickX, -clickY)
-                        );
-
-                        // Show the zoom-out button if zoomed in
-                        if (zoomLevel > 0) {
-                            zoomOutButton.style.display = 'block';
-                        }
-                    }
+                    // Update the store list
+                    updateStoreList(closestPoints);
                 });
 
             const circles = svg.append("g")
@@ -155,27 +119,6 @@
                         ${d.City}, ${d.State} ${d.Zip_Code}<br>
                         Type: ${d.Store_Type}
                     `);
-            }
-
-            // Zoom out button
-            const zoomOutButton = document.createElement("button");
-            zoomOutButton.textContent = "Zoom Out";
-            zoomOutButton.className = "zoom-out-button";
-            zoomOutButton.onclick = () => {
-                if (zoomLevel > 0) {
-                    zoomLevel--;
-                    svg.transition().duration(750).call(
-                        zoom.scaleTo, Math.pow(2, zoomLevel)
-                    );
-                    if (zoomLevel === 0) {
-                        zoomOutButton.style.display = 'none';
-                    }
-                }
-            };
-            document.body.appendChild(zoomOutButton);
-
-            function zoomed({transform}) {
-                circles.attr("transform", transform);
             }
         });
     </script>
