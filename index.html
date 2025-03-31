@@ -10,8 +10,15 @@
             flex-direction: column;
             align-items: center;
         }
-        button {
-            margin: 10px;
+        #controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        #zoomIn, #zoomOut {
+            margin: 5px;
             padding: 10px;
             background-color: #7e212a;
             color: #a47764;
@@ -21,9 +28,11 @@
     </style>
 </head>
 <body>
+    <div id="controls">
+        <button id="zoomIn">Zoom In</button>
+        <button id="zoomOut">Zoom Out</button>
+    </div>
     <h4>TEST TEST TEST TEST TEST TEST TEST</h4>
-    <button id="zoomIn">Zoom In</button>
-    <button id="zoomOut">Zoom Out</button>
     <script type="module">
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
         const height = Math.min(window.innerWidth, window.innerHeight);
@@ -38,7 +47,29 @@
             .range([height - margin, margin]);
             const svg = d3.create("svg")
             .attr("width", height)
-            .attr("height", height);
+            .attr("height", height)
+            .call(d3.zoom().on("zoom", (event) => {
+                svg.attr("transform", event.transform);
+            }))
+            .on("click", function(event) {
+                const [clickX, clickY] = d3.pointer(event);
+                const clickCoord = {
+                    X: x.invert(clickX),
+                    Y: y.invert(clickY)
+                };
+                const distances = data.map(d => ({
+                    ...d,
+                    distance: Math.sqrt(Math.pow(d.X - clickCoord.X, 2) + Math.pow(d.Y - clickCoord.Y, 2))
+                }));
+                const closestPoints = distances
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, 10);
+                circles.attr("fill", "#7e212a");
+                closestPoints.forEach(point => {
+                    circles.filter(d => d.X === point.X && d.Y === point.Y)
+                    .attr("fill", "#f1a7cd");
+                });
+            });
             const circles = svg.append("g")
             .selectAll("circle")
             .data(data)
@@ -49,7 +80,9 @@
             .attr("fill", "#7e212a");
             document.body.append(svg.node());
             const zoom = () => {
-                svg.attr("transform", `scale(${zoomLevel.k})`);
+                svg.transition()
+                .duration(750)
+                .call(d3.zoom().scaleTo, zoomLevel.k);
             };
             document.getElementById("zoomIn").addEventListener("click", () => {
                 zoomLevel.k *= 1.2;
