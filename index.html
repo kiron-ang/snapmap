@@ -15,14 +15,19 @@
             background-color: #f9f9f9;
         }
 
-        .map {
+        .map-container {
             width: 100%;
-            height: 600px;
+            max-width: 1000px;
+            margin: 20px auto;
             background-color: #ffffff;
             border: 1px solid #dddddd;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            margin: 20px auto;
-            max-width: 1000px;
+            padding: 20px;
+        }
+
+        .map {
+            width: 100%;
+            height: 600px;
         }
 
         .tooltip {
@@ -43,13 +48,46 @@
             color: #ff6f00; /* Dark orange color */
             margin: 20px 0;
         }
+
+        .filter-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .filter-container input {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #dddddd;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        .filter-container button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #ff6f00;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .filter-container button:hover {
+            background-color: #e65d00;
+        }
     </style>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <script src="https://unpkg.com/topojson@3"></script>
 </head>
 <body>
     <h1>SNAP Retailers in Texas</h1>
-    <div class="map" id="map"></div>
+    <div class="filter-container">
+        <input type="text" id="zipCode" placeholder="Enter ZIP Code">
+        <button onclick="filterByZipCode()">Filter</button>
+    </div>
+    <div class="map-container">
+        <div class="map" id="map"></div>
+    </div>
     <script>
         const width = 960;
         const height = 600;
@@ -69,42 +107,68 @@
             .attr("class", "tooltip")
             .style("opacity", 0);
 
-        // Load and display the map
-        d3.json("https://d3js.org/us-10m.v1.json").then(us => {
-            svg.append("g")
-                .selectAll("path")
-                .data(topojson.feature(us, us.objects.states).features)
-                .enter().append("path")
+        let snapData;
+
+        // Load and display the Texas map
+        d3.json("https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json").then(us => {
+            const texas = us.features.find(state => state.properties.name === "Texas");
+
+            svg.append("path")
+                .datum(texas)
                 .attr("d", path)
                 .attr("fill", "#eeeeee")
                 .attr("stroke", "#ffffff");
 
             // Load SNAP retailer data
             d3.csv("data.csv").then(data => {
-                svg.append("g")
-                    .selectAll("circle")
-                    .data(data)
-                    .enter().append("circle")
-                    .attr("cx", d => projection([+d.Longitude, +d.Latitude])[0])
-                    .attr("cy", d => projection([+d.Longitude, +d.Latitude])[1])
-                    .attr("r", 3)
-                    .attr("fill", "#ff6f00") // Dark orange color
-                    .on("mouseover", function(event, d) {
-                        tooltip.transition()
-                            .duration(200)
-                            .style("opacity", .9);
-                        tooltip.html(`${d.Store_Name}<br>${d.Store_Street_Address}, ${d.City}`)
-                            .style("left", (event.pageX + 5) + "px")
-                            .style("top", (event.pageY - 28) + "px");
-                    })
-                    .on("mouseout", function(d) {
-                        tooltip.transition()
-                            .duration(500)
-                            .style("opacity", 0);
-                    });
+                snapData = data;
+                plotRetailers(data);
             });
         });
 
+        function plotRetailers(data) {
+            svg.selectAll("circle").remove();
+
+            svg.append("g")
+                .selectAll("circle")
+                .data(data)
+                .enter().append("circle")
+                .attr("cx", d => projection([+d.Longitude, +d.Latitude])[0])
+                .attr("cy", d => projection([+d.Longitude, +d.Latitude])[1])
+                .attr("r", 3)
+                .attr("fill", "#ff6f00") // Dark orange color
+                .on("mouseover", function(event, d) {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html(`${d.Store_Name}<br>${d.Store_Street_Address}, ${d.City}`)
+                        .style("left", (event.pageX + 5) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function(d) {
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                });
+        }
+
+        function filterByZipCode() {
+            const zipCode = document.getElementById("zipCode").value;
+            const filteredData = snapData.filter(d => d.Zip_Code === zipCode);
+
+            if (filteredData.length > 0) {
+                plotRetailers(filteredData);
+                const firstRetailer = filteredData[0];
+                const [long, lat] = [firstRetailer.Longitude, firstRetailer.Latitude];
+                const [x, y] = projection([+long, +lat]);
+                svg.transition().duration(750).call(
+                    d3.zoom().transform,
+                    d3.zoomIdentity.translate(width / 2, height / 2).scale(5000).translate(-x, -y)
+                );
+            } else {
+                alert("No retailers found for this ZIP code.");
+            }
+        }
     </script>
 </body>
 </html>
