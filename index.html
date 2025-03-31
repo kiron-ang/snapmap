@@ -37,10 +37,12 @@
                 const closestPoints = distances
                 .sort((a, b) => a.distance - b.distance)
                 .slice(0, 10);
+                
+                console.log('Closest points:', closestPoints);
 
                 circles.attr("fill", "none");
                 closestPoints.forEach(point => {
-                    circles.filter(d => d === point)
+                    circles.filter(d => d.X === point.X && d.Y === point.Y)
                     .attr("fill", "#F1A7CD");
                 });
             });
