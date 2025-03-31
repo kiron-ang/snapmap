@@ -4,25 +4,24 @@
     <title>SNAP Map Texas - Interactive Map Visualization by Kiron Ang</title>
     <style>
         body {
-            background-color: #A47664;
+            background-color: #A47764;
             display: flex;
             flex-direction: column;
             align-items: center;
-            font-family: Arial, sans-serif;
-            color: #333;
+            font-family: sans-serif;
+            color: #f1a7cd;
         }
         .list-container {
             width: 80%;
             max-width: 800px;
             margin-top: 20px;
-            background: #F9F5F3;
+            background: #FFB082;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
             padding: 20px;
         }
         .store-item {
             padding: 10px;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid #C37C54;
         }
         .store-item:last-child {
             border-bottom: none;
@@ -42,81 +41,81 @@
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
         const height = Math.min(window.innerWidth, window.innerHeight);
         const margin = height * 0.04;
-
+        
         d3.csv("data.csv", d3.autoType).then(data => {
             const x = d3.scaleLinear()
-                .domain(d3.extent(data, d => d.X)).nice()
-                .range([margin, height - margin]);
+            .domain(d3.extent(data, d => d.X)).nice()
+            .range([margin, height - margin]);
             const y = d3.scaleLinear()
-                .domain(d3.extent(data, d => d.Y)).nice()
-                .range([height - margin, margin]);
-
+            .domain(d3.extent(data, d => d.Y)).nice()
+            .range([height - margin, margin]);
+            
             const svg = d3.create("svg")
-                .attr("width", height)
-                .attr("height", height)
-                .on("click", function(event) {
-                    const [clickX, clickY] = d3.pointer(event);
-                    const clickCoord = {
-                        X: x.invert(clickX),
-                        Y: y.invert(clickY)
-                    };
-                    const distances = data.map(d => ({
-                        ...d,
-                        distance: Math.sqrt(Math.pow(d.X - clickCoord.X, 2) + Math.pow(d.Y - clickCoord.Y, 2))
-                    }));
-                    const closestPoints = distances
-                        .sort((a, b) => a.distance - b.distance)
-                        .slice(0, 10);
-                    
-                    // Update the colors of the circles
-                    circles.attr("fill", "#7E212A");
-                    closestPoints.forEach(point => {
-                        circles.filter(d => d.X === point.X && d.Y === point.Y)
-                            .attr("fill", "#F1A7CD");
-                    });
-
-                    // Update the store list
-                    updateStoreList(closestPoints);
+            .attr("width", height)
+            .attr("height", height)
+            .on("click", function(event) {
+                const [clickX, clickY] = d3.pointer(event);
+                const clickCoord = {
+                    X: x.invert(clickX),
+                    Y: y.invert(clickY)
+                };
+                const distances = data.map(d => ({
+                    ...d,
+                    distance: Math.sqrt(Math.pow(d.X - clickCoord.X, 2) + Math.pow(d.Y - clickCoord.Y, 2))
+                }));
+                const closestPoints = distances
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, 10);
+                
+                // Update the colors of the circles
+                circles.attr("fill", "#7E212A");
+                closestPoints.forEach(point => {
+                    circles.filter(d => d.X === point.X && d.Y === point.Y)
+                    .attr("fill", "#F1A7CD");
                 });
-
+                
+                // Update the store list
+                updateStoreList(closestPoints);
+            });
+            
             const circles = svg.append("g")
-                .selectAll("circle")
-                .data(data)
-                .join("circle")
-                .attr("cx", d => x(d.X))
-                .attr("cy", d => y(d.Y))
-                .attr("r", 3)
-                .attr("fill", "#EC6936");
-
+            .selectAll("circle")
+            .data(data)
+            .join("circle")
+            .attr("cx", d => x(d.X))
+            .attr("cy", d => y(d.Y))
+            .attr("r", 3)
+            .attr("fill", "#EC6936");
+            
             document.body.append(svg.node());
-
-            // Create a container for the store list
-            const listContainer = d3.select("body")
-                .append("div")
-                .attr("class", "list-container");
-
+            
             // Function to update the store list
             function updateStoreList(stores) {
+                // Create a container for the store list
+                const listContainer = d3.select("body")
+                .append("div")
+                .attr("class", "list-container");
                 const storeItems = listContainer.selectAll(".store-item")
-                    .data(stores, d => d.Record_ID);
+                .data(stores, d => d.Record_ID);
                 
                 // Remove old items
                 storeItems.exit().remove();
                 
                 // Add new items
                 const newStoreItems = storeItems.enter()
-                    .append("div")
-                    .attr("class", "store-item");
-
+                .append("div")
+                .attr("class", "store-item");
+                
                 newStoreItems.append("div")
-                    .attr("class", "store-name")
-                    .text(d => d.Store_Name);
-
+                .attr("class", "store-name")
+                .text(d => d.Store_Name);
+                
                 newStoreItems.append("div")
-                    .attr("class", "store-details")
-                    .html(d => `
+                .attr("class", "store-details")
+                .html(d => `
                         ${d.Store_Street_Address}<br>
                         ${d.City}, ${d.State} ${d.Zip_Code}<br>
+                        County: ${d.County}<br>
                         Type: ${d.Store_Type}
                     `);
             }
