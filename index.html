@@ -89,9 +89,9 @@
                 const listContainer = d3.select("body")
                 .append("div")
                 .attr("class", "list-container");
+
                 const storeItems = listContainer.selectAll(".store-item")
-                .data(stores, d => d.Record_ID);
-                
+                                
                 // Remove old items
                 storeItems.exit().remove();
                 
