@@ -19,13 +19,13 @@
             width: 100%;
             max-width: 1200px;
             margin-top: 20px;
-            height: 80vh; /* Set a fixed height to container */
+            height: 80vh;
         }
         
         .map-container {
             flex: 3;
             position: relative;
-            height: 100%; /* Make map container fill height */
+            height: 100%;
         }
         
         .sidebar {
@@ -34,7 +34,7 @@
             padding: 15px;
             border-radius: 8px;
             margin-left: 20px;
-            height: calc(100% - 30px); /* Match map height accounting for padding */
+            height: calc(100% - 30px);
             overflow-y: auto;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
@@ -94,7 +94,7 @@
             padding: 8px 20px;
             border-radius: 30px;
             display: inline-block;
-            margin: 20px 0 10px 0; /* Added top margin */
+            margin: 20px 0 10px 0;
         }
         
         h1 {
@@ -159,6 +159,7 @@
         d3.csv("data.csv", d3.autoType).then(data => {
             // Keep track of current transform
             let currentTransform = d3.zoomIdentity;
+            let lastClickCoordinates = null;
             
             // Create scales
             const x = d3.scaleLinear()
@@ -173,9 +174,9 @@
             const g = svg.append("g");
             
             // Set constant sizes
-            const DEFAULT_RADIUS = 5;
-            const HIGHLIGHT_RADIUS = 7;
-            const MIN_RADIUS = 2.5; // minimum dot size
+            const BASE_RADIUS = 2; // Start small
+            const HIGHLIGHT_BASE_RADIUS = 3;
+            const MAX_RADIUS = 12; // Maximum radius when zoomed in
             
             // Draw points
             const circles = g.selectAll("circle")
@@ -183,7 +184,7 @@
                 .join("circle")
                 .attr("cx", d => x(d.X))
                 .attr("cy", d => y(d.Y))
-                .attr("r", DEFAULT_RADIUS)
+                .attr("r", BASE_RADIUS)
                 .attr("fill", "#7e212a")
                 .attr("stroke", "#f8f1e9")
                 .attr("stroke-width", 1);
@@ -200,9 +201,9 @@
             
             // Function to calculate point size based on zoom level
             function calculateRadius(baseRadius) {
-                // Adjust radius inversely to zoom but with a minimum size
-                const adjustedRadius = baseRadius / Math.sqrt(currentTransform.k);
-                return Math.max(adjustedRadius, MIN_RADIUS);
+                // Dots grow with zoom level but max out at MAX_RADIUS
+                const adjustedRadius = baseRadius * Math.sqrt(currentTransform.k);
+                return Math.min(adjustedRadius, MAX_RADIUS);
             }
             
             // Function to update point positions based on zoom transform
@@ -211,13 +212,16 @@
                     .attr("cx", d => currentTransform.applyX(x(d.X)))
                     .attr("cy", d => currentTransform.applyY(y(d.Y)))
                     .attr("r", d => d.highlighted ? 
-                        calculateRadius(HIGHLIGHT_RADIUS) : 
-                        calculateRadius(DEFAULT_RADIUS));
+                        calculateRadius(HIGHLIGHT_BASE_RADIUS) : 
+                        calculateRadius(BASE_RADIUS));
             }
             
             // Handle map clicks
             svg.on("click", function(event) {
                 const [clickX, clickY] = d3.pointer(event);
+                
+                // Store the click point for zoom centering
+                lastClickCoordinates = [clickX, clickY];
                 
                 // Convert screen coordinates back to data coordinates
                 const invertedX = currentTransform.invertX(clickX);
@@ -252,23 +256,48 @@
                 circles
                     .attr("fill", d => d.highlighted ? "#f1a7cd" : "#7e212a")
                     .attr("r", d => d.highlighted ? 
-                        calculateRadius(HIGHLIGHT_RADIUS) : 
-                        calculateRadius(DEFAULT_RADIUS));
+                        calculateRadius(HIGHLIGHT_BASE_RADIUS) : 
+                        calculateRadius(BASE_RADIUS));
                 
                 // Update sidebar
                 updateSidebar(closestPoints);
             });
             
+            // Function to zoom centered on last click point
+            function zoomCentered(scale) {
+                if (!lastClickCoordinates) {
+                    // If no point has been clicked yet, zoom from center
+                    svg.transition().duration(300).call(zoom.scaleBy, scale);
+                    return;
+                }
+                
+                // Get current center point
+                const [x, y] = lastClickCoordinates;
+                
+                // Calculate new transform
+                const transform = d3.zoomIdentity
+                    .translate(currentTransform.x, currentTransform.y)
+                    .scale(currentTransform.k * scale)
+                    .translate(
+                        (width / 2 - x) / (currentTransform.k * scale),
+                        (height / 2 - y) / (currentTransform.k * scale)
+                    );
+                
+                // Apply the transform
+                svg.transition().duration(300).call(zoom.transform, transform);
+            }
+            
             // Connect zoom buttons
             zoomInBtn.addEventListener("click", () => {
-                svg.transition().duration(300).call(zoom.scaleBy, 1.5);
+                zoomCentered(1.5);
             });
             
             zoomOutBtn.addEventListener("click", () => {
-                svg.transition().duration(300).call(zoom.scaleBy, 0.75);
+                zoomCentered(0.75);
             });
             
             resetBtn.addEventListener("click", () => {
+                lastClickCoordinates = null; // Reset the click point
                 svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
             });
         });
