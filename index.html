@@ -7,32 +7,12 @@
             background-color: #a47764;
             color: #7e212a;
             display: flex;
-            flex-direction: column;
             align-items: center;
-        }
-        #controls {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            display: flex;
-            flex-direction: column;
-        }
-        #zoomIn, #zoomOut {
-            margin: 5px;
-            padding: 10px;
-            background-color: #7e212a;
-            color: #a47764;
-            border: none;
-            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <div id="controls">
-        <button id="zoomIn">Zoom In</button>
-        <button id="zoomOut">Zoom Out</button>
-    </div>
-    <h4>TEST TEST TEST TEST TEST TEST TEST</h4>
+    <h1>SNAP Map Texas</h1>
     <script type="module">
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
         const height = Math.min(window.innerWidth, window.innerHeight);
@@ -79,19 +59,6 @@
             .attr("r", 5)
             .attr("fill", "#7e212a");
             document.body.append(svg.node());
-            const zoom = () => {
-                svg.transition()
-                .duration(750)
-                .call(d3.zoom().scaleTo, zoomLevel.k);
-            };
-            document.getElementById("zoomIn").addEventListener("click", () => {
-                zoomLevel.k *= 1.2;
-                zoom();
-            });
-            document.getElementById("zoomOut").addEventListener("click", () => {
-                zoomLevel.k /= 1.2;
-                zoom();
-            });
         });
     </script>
 </body>
