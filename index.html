@@ -100,6 +100,33 @@
         h1 {
             margin: 0;
         }
+        
+        /* Tooltip styles */
+        .tooltip {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid #7e212a;
+            border-radius: 5px;
+            padding: 10px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            max-width: 250px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            color: #7e212a;
+            font-size: 14px;
+        }
+        
+        .tooltip-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #7e212a;
+            padding-bottom: 3px;
+        }
+        
+        .tooltip-content {
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -114,6 +141,12 @@
                 <p>Click on the map to find the closest SNAP retailers.</p>
             </div>
         </div>
+    </div>
+    
+    <!-- Tooltip div -->
+    <div id="tooltip" class="tooltip">
+        <div class="tooltip-title"></div>
+        <div class="tooltip-content"></div>
     </div>
     
     <script type="module">
@@ -155,11 +188,14 @@
         zoomControls.appendChild(resetBtn);
         mapContainer.appendChild(zoomControls);
         
+        // Setup tooltip
+        const tooltip = d3.select("#tooltip");
+        
         // Load data
         d3.csv("data.csv", d3.autoType).then(data => {
-            // Keep track of current transform
+            // Track current state
             let currentTransform = d3.zoomIdentity;
-            let lastClickCoordinates = null;
+            let focusPoint = null;
             
             // Create scales
             const x = d3.scaleLinear()
@@ -174,9 +210,9 @@
             const g = svg.append("g");
             
             // Set constant sizes
-            const BASE_RADIUS = 2; // Start small
+            const BASE_RADIUS = 2;
             const HIGHLIGHT_BASE_RADIUS = 3;
-            const MAX_RADIUS = 12; // Maximum radius when zoomed in
+            const MAX_RADIUS = 12;
             
             // Draw points
             const circles = g.selectAll("circle")
@@ -187,55 +223,78 @@
                 .attr("r", BASE_RADIUS)
                 .attr("fill", "#7e212a")
                 .attr("stroke", "#f8f1e9")
-                .attr("stroke-width", 1);
+                .attr("stroke-width", 1)
+                .on("mouseover", function(event, d) {
+                    // Show tooltip on hover
+                    const [mouseX, mouseY] = d3.pointer(event, document.body);
+                    
+                    tooltip.select(".tooltip-title").html(d.Store_Name);
+                    tooltip.select(".tooltip-content").html(`
+                        ${d.Store_Street_Address}<br>
+                        ${d.City}, ${d.State} ${d.Zip_Code}<br>
+                        <b>Type:</b> ${d.Store_Type}
+                    `);
+                    
+                    tooltip
+                        .style("left", (mouseX + 15) + "px")
+                        .style("top", (mouseY - 15) + "px")
+                        .style("opacity", 1);
+                })
+                .on("mouseout", function() {
+                    // Hide tooltip
+                    tooltip.style("opacity", 0);
+                })
+                .on("mousemove", function(event) {
+                    // Move tooltip with mouse
+                    const [mouseX, mouseY] = d3.pointer(event, document.body);
+                    tooltip
+                        .style("left", (mouseX + 15) + "px")
+                        .style("top", (mouseY - 15) + "px");
+                });
             
             // Setup zoom behavior
             const zoom = d3.zoom()
                 .scaleExtent([1, 20])
                 .on("zoom", (event) => {
                     currentTransform = event.transform;
-                    updatePoints();
+                    g.attr("transform", currentTransform);
+                    updatePointSizes();
                 });
                 
             svg.call(zoom);
             
-            // Function to calculate point size based on zoom level
-            function calculateRadius(baseRadius) {
-                // Dots grow with zoom level but max out at MAX_RADIUS
-                const adjustedRadius = baseRadius * Math.sqrt(currentTransform.k);
-                return Math.min(adjustedRadius, MAX_RADIUS);
-            }
-            
-            // Function to update point positions based on zoom transform
-            function updatePoints() {
+            // Function to update just the point sizes based on zoom level
+            function updatePointSizes() {
                 circles
-                    .attr("cx", d => currentTransform.applyX(x(d.X)))
-                    .attr("cy", d => currentTransform.applyY(y(d.Y)))
                     .attr("r", d => d.highlighted ? 
                         calculateRadius(HIGHLIGHT_BASE_RADIUS) : 
                         calculateRadius(BASE_RADIUS));
+            }
+            
+            // Function to calculate point size based on zoom level
+            function calculateRadius(baseRadius) {
+                const adjustedRadius = baseRadius * Math.sqrt(currentTransform.k);
+                return Math.min(adjustedRadius, MAX_RADIUS);
             }
             
             // Handle map clicks
             svg.on("click", function(event) {
                 const [clickX, clickY] = d3.pointer(event);
                 
-                // Store the click point for zoom centering
-                lastClickCoordinates = [clickX, clickY];
-                
-                // Convert screen coordinates back to data coordinates
-                const invertedX = currentTransform.invertX(clickX);
-                const invertedY = currentTransform.invertY(clickY);
-                
-                const clickCoord = {
-                    X: x.invert(invertedX),
-                    Y: y.invert(invertedY)
+                // Store the actual coordinate in data space for zooming
+                focusPoint = {
+                    x: currentTransform.invertX(clickX),
+                    y: currentTransform.invertY(clickY)
                 };
+                
+                // Convert click coordinates to data space
+                const dataX = x.invert(currentTransform.invertX(clickX));
+                const dataY = y.invert(currentTransform.invertY(clickY));
                 
                 // Calculate distances
                 const distances = data.map(d => ({
                     ...d,
-                    distance: Math.sqrt(Math.pow(d.X - clickCoord.X, 2) + Math.pow(d.Y - clickCoord.Y, 2))
+                    distance: Math.sqrt(Math.pow(d.X - dataX, 2) + Math.pow(d.Y - dataY, 2))
                 }));
                 
                 // Get 10 closest points
@@ -263,41 +322,48 @@
                 updateSidebar(closestPoints);
             });
             
-            // Function to zoom centered on last click point
-            function zoomCentered(scale) {
-                if (!lastClickCoordinates) {
-                    // If no point has been clicked yet, zoom from center
-                    svg.transition().duration(300).call(zoom.scaleBy, scale);
-                    return;
-                }
+            // Function to zoom to focus point with a specific scale factor
+            function zoomToFocusPoint(scaleFactor) {
+                if (!focusPoint) return;
                 
-                // Get current center point
-                const [x, y] = lastClickCoordinates;
+                // Calculate target center in screen coordinates
+                const targetX = x(focusPoint.x);
+                const targetY = y(focusPoint.y);
                 
-                // Calculate new transform
-                const transform = d3.zoomIdentity
-                    .translate(currentTransform.x, currentTransform.y)
-                    .scale(currentTransform.k * scale)
-                    .translate(
-                        (width / 2 - x) / (currentTransform.k * scale),
-                        (height / 2 - y) / (currentTransform.k * scale)
-                    );
+                // Calculate target transform for centering and zooming
+                const newScale = currentTransform.k * scaleFactor;
+                const newX = width / 2 - targetX * newScale;
+                const newY = height / 2 - targetY * newScale;
                 
-                // Apply the transform
-                svg.transition().duration(300).call(zoom.transform, transform);
+                // Create new transform
+                const newTransform = d3.zoomIdentity
+                    .translate(newX, newY)
+                    .scale(newScale);
+                
+                // Animate to the new transform
+                svg.transition().duration(500)
+                   .call(zoom.transform, newTransform);
             }
             
             // Connect zoom buttons
             zoomInBtn.addEventListener("click", () => {
-                zoomCentered(1.5);
+                if (focusPoint) {
+                    zoomToFocusPoint(1.5);
+                } else {
+                    svg.transition().duration(300).call(zoom.scaleBy, 1.5);
+                }
             });
             
             zoomOutBtn.addEventListener("click", () => {
-                zoomCentered(0.75);
+                if (focusPoint) {
+                    zoomToFocusPoint(0.75);
+                } else {
+                    svg.transition().duration(300).call(zoom.scaleBy, 0.75);
+                }
             });
             
             resetBtn.addEventListener("click", () => {
-                lastClickCoordinates = null; // Reset the click point
+                focusPoint = null;
                 svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
             });
         });
