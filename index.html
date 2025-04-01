@@ -19,11 +19,13 @@
             width: 100%;
             max-width: 1200px;
             margin-top: 20px;
+            height: 80vh; /* Set a fixed height to container */
         }
         
         .map-container {
             flex: 3;
             position: relative;
+            height: 100%; /* Make map container fill height */
         }
         
         .sidebar {
@@ -32,7 +34,7 @@
             padding: 15px;
             border-radius: 8px;
             margin-left: 20px;
-            max-height: 80vh;
+            height: calc(100% - 30px); /* Match map height accounting for padding */
             overflow-y: auto;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
@@ -92,7 +94,7 @@
             padding: 8px 20px;
             border-radius: 30px;
             display: inline-block;
-            margin-bottom: 10px;
+            margin: 20px 0 10px 0; /* Added top margin */
         }
         
         h1 {
@@ -119,13 +121,13 @@
         
         const mapContainer = document.getElementById("map-container");
         const width = mapContainer.clientWidth;
-        const height = Math.min(window.innerHeight * 0.8, 800);
+        const height = mapContainer.clientHeight;
         const margin = height * 0.02;
         
         // Create map SVG
         const svg = d3.create("svg")
-            .attr("width", width)
-            .attr("height", height)
+            .attr("width", "100%")
+            .attr("height", "100%")
             .style("background-color", "#ffb082")
             .style("border-radius", "8px");
             
@@ -170,13 +172,18 @@
             // Create a group for all map elements
             const g = svg.append("g");
             
+            // Set constant sizes
+            const DEFAULT_RADIUS = 5;
+            const HIGHLIGHT_RADIUS = 7;
+            const MIN_RADIUS = 2.5; // minimum dot size
+            
             // Draw points
             const circles = g.selectAll("circle")
                 .data(data)
                 .join("circle")
                 .attr("cx", d => x(d.X))
                 .attr("cy", d => y(d.Y))
-                .attr("r", 5)
+                .attr("r", DEFAULT_RADIUS)
                 .attr("fill", "#7e212a")
                 .attr("stroke", "#f8f1e9")
                 .attr("stroke-width", 1);
@@ -191,12 +198,21 @@
                 
             svg.call(zoom);
             
+            // Function to calculate point size based on zoom level
+            function calculateRadius(baseRadius) {
+                // Adjust radius inversely to zoom but with a minimum size
+                const adjustedRadius = baseRadius / Math.sqrt(currentTransform.k);
+                return Math.max(adjustedRadius, MIN_RADIUS);
+            }
+            
             // Function to update point positions based on zoom transform
             function updatePoints() {
                 circles
                     .attr("cx", d => currentTransform.applyX(x(d.X)))
                     .attr("cy", d => currentTransform.applyY(y(d.Y)))
-                    .attr("r", 5 / Math.sqrt(currentTransform.k)); // Adjust point size inversely to zoom
+                    .attr("r", d => d.highlighted ? 
+                        calculateRadius(HIGHLIGHT_RADIUS) : 
+                        calculateRadius(DEFAULT_RADIUS));
             }
             
             // Handle map clicks
@@ -223,16 +239,21 @@
                     .sort((a, b) => a.distance - b.distance)
                     .slice(0, 10);
                 
-                // Reset all circles
-                circles.attr("fill", "#7e212a")
-                       .attr("r", 5 / Math.sqrt(currentTransform.k));
+                // Reset all points
+                data.forEach(d => d.highlighted = false);
                 
-                // Highlight closest points
+                // Mark closest points as highlighted
                 closestPoints.forEach(point => {
-                    circles.filter(d => d.X === point.X && d.Y === point.Y)
-                        .attr("fill", "#f1a7cd")
-                        .attr("r", 7 / Math.sqrt(currentTransform.k));
+                    const dataPoint = data.find(d => d.X === point.X && d.Y === point.Y);
+                    if (dataPoint) dataPoint.highlighted = true;
                 });
+                
+                // Update the display
+                circles
+                    .attr("fill", d => d.highlighted ? "#f1a7cd" : "#7e212a")
+                    .attr("r", d => d.highlighted ? 
+                        calculateRadius(HIGHLIGHT_RADIUS) : 
+                        calculateRadius(DEFAULT_RADIUS));
                 
                 // Update sidebar
                 updateSidebar(closestPoints);
