@@ -28,7 +28,7 @@
         
         .sidebar {
             flex: 1;
-            background-color: #f8f1e9;
+            background-color: #ffb082; /* Updated background color */
             padding: 15px;
             border-radius: 8px;
             margin-left: 20px;
@@ -73,7 +73,7 @@
         .zoom-btn {
             width: 40px;
             height: 40px;
-            background: #f8f1e9;
+            background: #ffb082; /* Updated background color */
             border: 1px solid #7e212a;
             color: #7e212a;
             font-size: 20px;
@@ -84,12 +84,27 @@
         }
         
         .zoom-btn:hover {
-            background: #e6d9d0;
+            background: #ffa06c;
+        }
+        
+        /* New style for the title background */
+        .title-container {
+            background-color: #ffb082;
+            padding: 8px 20px;
+            border-radius: 30px;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        
+        h1 {
+            margin: 0;
         }
     </style>
 </head>
 <body>
-    <h1>SNAP Map Texas</h1>
+    <div class="title-container">
+        <h1>SNAP Map Texas</h1>
+    </div>
     <div class="container">
         <div class="map-container" id="map-container"></div>
         <div class="sidebar">
@@ -112,7 +127,7 @@
         const svg = d3.create("svg")
             .attr("width", width)
             .attr("height", height)
-            .style("background-color", "#f8f1e9")
+            .style("background-color", "#ffb082") // Updated background color
             .style("border-radius", "8px");
             
         // Add the SVG to the container
