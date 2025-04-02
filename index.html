@@ -1,55 +1,96 @@
 <!DOCTYPE html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="favicon.ico" />
     <title>SNAP Map - Interactive Map Visualization by Kiron Ang</title>
     <style>
-        body {
-            font-family: sans-serif;
-            background-color: #a47764;
-            color: #7e212a;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        :root {
+            --primary-color: #7e212a;
+            --background-color: #a47764;
+            --light-color: #ffb082;
+            --border-color: #d3b8ae;
         }
 
-        .container {
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--background-color);
+            color: var(--primary-color);
+            line-height: 1.5;
+            padding: 1rem;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        .title-container {
+            background-color: var(--light-color);
+            padding: 0.5rem 1.5rem;
+            border-radius: 30px;
+            display: inline-block;
+            margin: 1rem auto;
+            text-align: center;
+        }
+
+        .main-container {
             display: flex;
-            width: 100%;
+            flex-direction: column;
             max-width: 1200px;
-            margin-top: 20px;
-            height: 80vh;
+            margin: 0 auto;
+            gap: 1rem;
         }
 
         .map-container {
-            flex: 3;
             position: relative;
+            width: 100%;
+            aspect-ratio: 1/1;
+            max-height: 70vh;
+        }
+
+        .map-container svg {
+            background-color: var(--light-color);
+            border-radius: 8px;
+            width: 100%;
             height: 100%;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
 
         .sidebar {
-            flex: 1;
-            background-color: #ffb082;
-            padding: 15px;
+            background-color: var(--light-color);
+            padding: 1rem;
             border-radius: 8px;
-            margin-left: 20px;
-            height: calc(100% - 30px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            max-height: 50vh;
             overflow-y: auto;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         .sidebar h2 {
-            color: #7e212a;
-            margin-top: 0;
-            border-bottom: 2px solid #7e212a;
-            padding-bottom: 8px;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
         }
 
         .store-item {
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #d3b8ae;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .store-name {
@@ -57,66 +98,82 @@
             font-size: 1.1em;
         }
 
-        .store-address, .store-type {
-            margin-top: 5px;
-        }
-
-        .title-container {
-            background-color: #ffb082;
-            padding: 8px 20px;
-            border-radius: 30px;
-            display: inline-block;
-            margin: 20px 0 10px 0;
-        }
-
-        h1 {
-            margin: 0;
-        }
-
-        /* Tooltip styles */
         .tooltip {
             position: absolute;
-            background-color: rgba(255, 255, 255, 0.9);
-            border: 1px solid #7e212a;
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 1px solid var(--primary-color);
             border-radius: 5px;
-            padding: 10px;
+            padding: 0.75rem;
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.2s;
             max-width: 250px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            color: #7e212a;
-            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            color: var(--primary-color);
+            font-size: 0.9rem;
+            z-index: 1000;
         }
 
         .tooltip-title {
             font-weight: bold;
-            margin-bottom: 5px;
-            border-bottom: 1px solid #7e212a;
-            padding-bottom: 3px;
+            margin-bottom: 0.25rem;
+            border-bottom: 1px solid var(--primary-color);
+            padding-bottom: 0.25rem;
         }
 
-        .tooltip-content {
-            line-height: 1.4;
+        .instructions {
+            font-style: italic;
+            margin-bottom: 1rem;
+        }
+
+        @media (min-width: 768px) {
+            .main-container {
+                flex-direction: row;
+            }
+
+            .map-container {
+                flex: 2;
+                max-height: 80vh;
+            }
+
+            .sidebar {
+                flex: 1;
+                max-height: 80vh;
+            }
+        }
+
+        /* Focus styles for accessibility */
+        :focus {
+            outline: 3px solid #4a90e2;
+            outline-offset: 2px;
+        }
+
+        /* High contrast mode support */
+        @media (forced-colors: active) {
+            .sidebar, .title-container, .map-container svg {
+                border: 1px solid ButtonText;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="title-container">
-        <h1>SNAP Map</h1>
-    </div>
-    <div class="container">
-        <div class="map-container" id="map-container"></div>
+    <header>
+        <div class="title-container">
+            <h1>SNAP Map</h1>
+        </div>
+    </header>
+    <main class="main-container">
+        <div class="map-container" id="map-container" aria-label="Map of SNAP retailers">
+            <!-- SVG will be inserted here by JavaScript -->
+        </div>
         <div class="sidebar">
             <h2>Ten Closest SNAP Retailers</h2>
-            <div id="closest-stores">
-                <p>Click on the map to find the closest SNAP retailers.</p>
-            </div>
+            <p class="instructions" id="map-instructions">Click on the map to find the closest SNAP retailers.</p>
+            <div id="closest-stores" aria-live="polite"></div>
         </div>
-    </div>
+    </main>
 
-    <!-- Tooltip div -->
-    <div id="tooltip" class="tooltip">
+    <div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true">
         <div class="tooltip-title"></div>
         <div class="tooltip-content"></div>
     </div>
@@ -124,139 +181,178 @@
     <script type="module">
         import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
+        // Set up map
         const mapContainer = document.getElementById("map-container");
-        const width = mapContainer.clientWidth;
-        const height = mapContainer.clientHeight;
-        const margin = height * 0.02;
-
-        // Create map SVG
         const svg = d3.create("svg")
-        .attr("width", "100%")
-        .attr("height", "100%")
-        .style("background-color", "#ffb082")
-        .style("border-radius", "8px");
-
-        // Add the SVG to the container
+            .attr("aria-label", "Interactive map of SNAP retailers")
+            .attr("role", "img");
+        
         mapContainer.appendChild(svg.node());
-
+        
+        // Create a group for all map elements
+        const g = svg.append("g");
+        
         // Setup tooltip
         const tooltip = d3.select("#tooltip");
-
+        
+        // Point settings
+        const POINT_RADIUS = 3;
+        const HIGHLIGHT_RADIUS = 5;
+        
         // Load data
         d3.csv("data.csv", d3.autoType).then(data => {
-            // Create scales
-            const x = d3.scaleLinear()
-            .domain(d3.extent(data, d => d.X)).nice()
-            .range([margin, width - margin]);
-
-            const y = d3.scaleLinear()
-            .domain(d3.extent(data, d => d.Y)).nice()
-            .range([height - margin, margin]);
-
-            // Create a group for all map elements
-            const g = svg.append("g");
-
-            // Set constant sizes
-            const POINT_RADIUS = 2;
-            const HIGHLIGHT_RADIUS = 3;
-
-            // Draw points
-            const circles = g.selectAll("circle")
-            .data(data)
-            .join("circle")
-            .attr("cx", d => x(d.X))
-            .attr("cy", d => y(d.Y))
-            .attr("r", POINT_RADIUS)
-            .attr("fill", "#7e212a")
-            .attr("stroke", "#f8f1e9")
-            .attr("stroke-width", 1)
-            .on("mouseover", function(event, d) {
-                // Show tooltip on hover
-                const [mouseX, mouseY] = d3.pointer(event, document.body);
-
-                tooltip.select(".tooltip-title").html(d.Store_Name);
-                tooltip.select(".tooltip-content").html(`
+            // Create responsive sizing
+            function updateMapSize() {
+                const containerWidth = mapContainer.clientWidth;
+                const containerHeight = mapContainer.clientHeight;
+                
+                // Calculate margins
+                const margin = Math.min(containerWidth, containerHeight) * 0.05;
+                
+                // Create scales
+                const x = d3.scaleLinear()
+                    .domain(d3.extent(data, d => d.X)).nice()
+                    .range([margin, containerWidth - margin]);
+                
+                const y = d3.scaleLinear()
+                    .domain(d3.extent(data, d => d.Y)).nice()
+                    .range([containerHeight - margin, margin]);
+                
+                // Update/draw points
+                const circles = g.selectAll("circle")
+                    .data(data);
+                
+                circles.enter()
+                    .append("circle")
+                    .merge(circles)
+                    .attr("cx", d => x(d.X))
+                    .attr("cy", d => y(d.Y))
+                    .attr("r", d => d.highlighted ? HIGHLIGHT_RADIUS : POINT_RADIUS)
+                    .attr("fill", d => d.highlighted ? "#f1a7cd" : "#7e212a")
+                    .attr("stroke", "#fff")
+                    .attr("stroke-width", 0.5)
+                    .attr("tabindex", 0)
+                    .attr("aria-label", d => `${d.Store_Name}, ${d.Store_Type}`)
+                    .attr("role", "button")
+                    .on("mouseover focus", function(event, d) {
+                        handlePointHover(event, d);
+                    })
+                    .on("mouseout blur", function() {
+                        tooltip.style("opacity", 0).attr("aria-hidden", "true");
+                    })
+                    .on("mousemove", handlePointMouseMove)
+                    .on("click keyup", function(event, d) {
+                        if (event.type === "keyup" && event.key !== "Enter" && event.key !== " ") return;
+                        handlePointClick(event, d);
+                    });
+                
+                // Remove any circles that are no longer needed
+                circles.exit().remove();
+                
+                // Handle map clicks for finding closest points
+                svg.on("click keyup", function(event) {
+                    if (event.type === "keyup" && event.key !== "Enter" && event.key !== " ") return;
+                    
+                    const [clickX, clickY] = d3.pointer(event);
+                    
+                    // Convert click coordinates to data space
+                    const dataX = x.invert(clickX);
+                    const dataY = y.invert(clickY);
+                    
+                    findClosestPoints(dataX, dataY);
+                });
+                
+                // Handle hover/focus behavior
+                function handlePointHover(event, d) {
+                    const [mouseX, mouseY] = d3.pointer(event, document.body);
+                    
+                    tooltip.select(".tooltip-title").html(d.Store_Name);
+                    tooltip.select(".tooltip-content").html(`
                         ${d.Store_Street_Address}<br>
                         ${d.City}, ${d.State} ${d.Zip_Code}<br>
                         <b>Type:</b> ${d.Store_Type}
                     `);
-
-                tooltip
-                .style("left", (mouseX + 15) + "px")
-                .style("top", (mouseY - 15) + "px")
-                .style("opacity", 1);
-            })
-            .on("mouseout", function() {
-                // Hide tooltip
-                tooltip.style("opacity", 0);
-            })
-            .on("mousemove", function(event) {
-                // Move tooltip with mouse
-                const [mouseX, mouseY] = d3.pointer(event, document.body);
-                tooltip
-                .style("left", (mouseX + 15) + "px")
-                .style("top", (mouseY - 15) + "px");
-            });
-
-            // Handle map clicks
-            svg.on("click", function(event) {
-                const [clickX, clickY] = d3.pointer(event);
-
-                // Convert click coordinates to data space
-                const dataX = x.invert(clickX);
-                const dataY = y.invert(clickY);
-
+                    
+                    tooltip
+                        .style("left", (mouseX + 15) + "px")
+                        .style("top", (mouseY - 15) + "px")
+                        .style("opacity", 1)
+                        .attr("aria-hidden", "false");
+                }
+                
+                function handlePointMouseMove(event) {
+                    const [mouseX, mouseY] = d3.pointer(event, document.body);
+                    tooltip
+                        .style("left", (mouseX + 15) + "px")
+                        .style("top", (mouseY - 15) + "px");
+                }
+                
+                function handlePointClick(event, d) {
+                    findClosestPoints(d.X, d.Y);
+                }
+            }
+            
+            function findClosestPoints(x, y) {
                 // Calculate distances
                 const distances = data.map(d => ({
                     ...d,
-                    distance: Math.sqrt(Math.pow(d.X - dataX, 2) + Math.pow(d.Y - dataY, 2))
+                    distance: Math.sqrt(Math.pow(d.X - x, 2) + Math.pow(d.Y - y, 2))
                 }));
-
+                
                 // Get 10 closest points
                 const closestPoints = distances
-                .sort((a, b) => a.distance - b.distance)
-                .slice(0, 10);
-
+                    .sort((a, b) => a.distance - b.distance)
+                    .slice(0, 10);
+                
                 // Reset all points
                 data.forEach(d => d.highlighted = false);
-
+                
                 // Mark closest points as highlighted
                 closestPoints.forEach(point => {
                     const dataPoint = data.find(d => d.X === point.X && d.Y === point.Y);
                     if (dataPoint) dataPoint.highlighted = true;
                 });
-
+                
                 // Update the display
-                circles
-                .attr("fill", d => d.highlighted ? "#f1a7cd" : "#7e212a")
-                .attr("r", d => d.highlighted ? HIGHLIGHT_RADIUS : POINT_RADIUS);
-
+                g.selectAll("circle")
+                    .attr("fill", d => d.highlighted ? "#f1a7cd" : "#7e212a")
+                    .attr("r", d => d.highlighted ? HIGHLIGHT_RADIUS : POINT_RADIUS);
+                
                 // Update sidebar
                 updateSidebar(closestPoints);
-            });
+            }
+            
+            // Initial render
+            updateMapSize();
+            
+            // Add resize handler
+            window.addEventListener("resize", updateMapSize);
         });
-
+        
         // Function to update sidebar content
         function updateSidebar(stores) {
             const container = document.getElementById("closest-stores");
             container.innerHTML = "";
-
+            
+            // Hide instructions when we have results
+            document.getElementById("map-instructions").style.display = "none";
+            
             stores.forEach((store, index) => {
                 const storeElement = document.createElement("div");
                 storeElement.className = "store-item";
-
+                
                 const nameElement = document.createElement("div");
                 nameElement.className = "store-name";
                 nameElement.textContent = `${index + 1}. ${store.Store_Name}`;
-
+                
                 const addressElement = document.createElement("div");
                 addressElement.className = "store-address";
                 addressElement.textContent = `${store.Store_Street_Address}, ${store.City}, ${store.State} ${store.Zip_Code}`;
-
+                
                 const typeElement = document.createElement("div");
                 typeElement.className = "store-type";
                 typeElement.textContent = `Type: ${store.Store_Type}`;
-
+                
                 storeElement.appendChild(nameElement);
                 storeElement.appendChild(addressElement);
                 storeElement.appendChild(typeElement);
@@ -265,3 +361,4 @@
         }
     </script>
 </body>
+</html>

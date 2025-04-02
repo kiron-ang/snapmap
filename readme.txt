@@ -1,1 +1,1 @@
-"SNAP Map Texas" is an interactive map visualization I made to help people find retailers that accept SNAP in the state of Texas. It is available at 
+"SNAP Map" is an interactive map visualization I made to help people find retailers that accept SNAP in the state of Texas. It is available at kiron-ang.github.io/snapmap. I created it with the D3 javascript library. I filtered the data to keep only retailers in the state of Texas, and removed three outliers whose "X" and "Y" measurements were incorrect. I then plotted "X" and "Y" on a linear scale
