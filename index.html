@@ -39,13 +39,19 @@
             border-width: 0;
         }
 
+        header {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
         .title-container {
             background-color: var(--light-color);
             padding: 0.5rem 1.5rem;
             border-radius: 30px;
-            display: inline-block;
-            margin: 1rem auto;
             text-align: center;
+            margin: 0 auto;
         }
 
         .main-container {
@@ -78,6 +84,7 @@
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
             max-height: 50vh;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
         }
 
         .sidebar h2 {
@@ -144,7 +151,7 @@
 
         /* Focus styles for accessibility */
         :focus {
-            outline: 3px solid #4a90e2;
+            outline: 3px solid #f1a7cd;
             outline-offset: 2px;
         }
 
@@ -168,7 +175,7 @@
         </div>
         <div class="sidebar">
             <h2>Ten Closest SNAP Retailers</h2>
-            <p class="instructions" id="map-instructions">Click on the map to find the closest SNAP retailers.</p>
+            <p class="instructions" id="map-instructions">Tap on the map to find the closest SNAP retailers.</p>
             <div id="closest-stores" aria-live="polite"></div>
         </div>
     </main>
@@ -199,140 +206,233 @@
         const POINT_RADIUS = 3;
         const HIGHLIGHT_RADIUS = 5;
         
-        // Load data
-        d3.csv("data.csv", d3.autoType).then(data => {
-            // Create responsive sizing
-            function updateMapSize() {
+        // Track if we're currently processing a click to prevent multiple rapid clicks
+        let isProcessing = false;
+        
+        // Load data - using fetch API for better performance
+        fetch("data.csv")
+            .then(response => response.text())
+            .then(csvText => {
+                // Simple CSV parsing to avoid full d3.csv parser overhead
+                const rows = csvText.trim().split('\n');
+                const headers = rows[0].split(',');
+                
+                const data = rows.slice(1).map(row => {
+                    const values = row.split(',');
+                    const entry = {};
+                    
+                    headers.forEach((header, i) => {
+                        // Convert numeric values
+                        const value = values[i];
+                        if (header === 'X' || header === 'Y') {
+                            entry[header] = parseFloat(value);
+                        } else {
+                            entry[header] = value;
+                        }
+                    });
+                    
+                    return entry;
+                });
+                
+                // Pre-calculate data extents to avoid repeated calculations
+                const xExtent = [
+                    Math.min(...data.map(d => d.X)),
+                    Math.max(...data.map(d => d.X))
+                ];
+                
+                const yExtent = [
+                    Math.min(...data.map(d => d.Y)),
+                    Math.max(...data.map(d => d.Y))
+                ];
+                
+                // Prepare SVG points in a more efficient way
+                setupMapPoints(data, xExtent, yExtent);
+            })
+            .catch(error => console.error("Error loading data:", error));
+            
+        function setupMapPoints(data, xExtent, yExtent) {
+            // Initial render
+            requestAnimationFrame(() => updateMapSize(data, xExtent, yExtent));
+            
+            // Add resize handler with debounce
+            let resizeTimer;
+            window.addEventListener("resize", () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    updateMapSize(data, xExtent, yExtent);
+                }, 250);
+            });
+            
+            // Touch event optimization for mobile
+            let touchTimer;
+            svg.node().addEventListener("touchstart", (event) => {
+                // Clear any existing timer
+                clearTimeout(touchTimer);
+                
+                // Prevent default to avoid double events
+                event.preventDefault();
+                
+                if (isProcessing) return;
+                
+                // Set a timeout to handle the touch after a short delay
+                touchTimer = setTimeout(() => {
+                    const touch = event.touches[0];
+                    const rect = svg.node().getBoundingClientRect();
+                    const touchX = touch.clientX - rect.left;
+                    const touchY = touch.clientY - rect.top;
+                    
+                    handleMapInteraction(data, touchX, touchY, xExtent, yExtent);
+                }, 50);
+            }, { passive: false });
+            
+            // Regular click handler for desktop
+            svg.on("click", function(event) {
+                if (isProcessing) return;
+                
+                const [clickX, clickY] = d3.pointer(event);
+                handleMapInteraction(data, clickX, clickY, xExtent, yExtent);
+            });
+        }
+        
+        function updateMapSize(data, xExtent, yExtent) {
+            const containerWidth = mapContainer.clientWidth;
+            const containerHeight = mapContainer.clientHeight;
+            
+            // Calculate margins
+            const margin = Math.min(containerWidth, containerHeight) * 0.05;
+            
+            // Create scales
+            const x = d3.scaleLinear()
+                .domain(xExtent)
+                .range([margin, containerWidth - margin]);
+            
+            const y = d3.scaleLinear()
+                .domain(yExtent)
+                .range([containerHeight - margin, margin]);
+            
+            // Batch DOM operations for better performance
+            const circles = [];
+            
+            // Create a document fragment to minimize reflows
+            const batch = 500; // Process in batches for better performance
+            const totalBatches = Math.ceil(data.length / batch);
+            
+            // Clear existing circles
+            g.selectAll("circle").remove();
+            
+            // Process in batches
+            for (let b = 0; b < totalBatches; b++) {
+                const start = b * batch;
+                const end = Math.min(start + batch, data.length);
+                const batchData = data.slice(start, end);
+                
+                // Create circles for this batch
+                const batchCircles = g.selectAll(null)
+                    .data(batchData)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", d => x(d.X))
+                    .attr("cy", d => y(d.Y))
+                    .attr("r", POINT_RADIUS)
+                    .attr("fill", "#7e212a")
+                    .attr("tabindex", 0)
+                    .attr("aria-label", d => `${d.Store_Name}, ${d.Store_Type}`)
+                    .attr("role", "button");
+                
+                // Add event handlers only to a smaller subset for performance
+                batchCircles.each(function(d) {
+                    const circle = d3.select(this);
+                    circle.on("click", function(event) {
+                        if (isProcessing) return;
+                        event.stopPropagation();
+                        handleMapInteraction(data, x(d.X), y(d.Y), xExtent, yExtent);
+                    });
+                });
+            }
+        }
+        
+        function handleMapInteraction(data, pixelX, pixelY, xExtent, yExtent) {
+            isProcessing = true;
+            
+            // Show loading indicator in sidebar
+            document.getElementById("closest-stores").innerHTML = "<p>Finding closest stores...</p>";
+            
+            // Use a timeout to allow UI to update before heavy computation
+            setTimeout(() => {
                 const containerWidth = mapContainer.clientWidth;
                 const containerHeight = mapContainer.clientHeight;
-                
-                // Calculate margins
                 const margin = Math.min(containerWidth, containerHeight) * 0.05;
                 
                 // Create scales
                 const x = d3.scaleLinear()
-                    .domain(d3.extent(data, d => d.X)).nice()
+                    .domain(xExtent)
                     .range([margin, containerWidth - margin]);
                 
                 const y = d3.scaleLinear()
-                    .domain(d3.extent(data, d => d.Y)).nice()
+                    .domain(yExtent)
                     .range([containerHeight - margin, margin]);
                 
-                // Update/draw points
-                const circles = g.selectAll("circle")
-                    .data(data);
+                // Convert pixel coordinates to data space
+                const dataX = x.invert(pixelX);
+                const dataY = y.invert(pixelY);
                 
-                circles.enter()
-                    .append("circle")
-                    .merge(circles)
-                    .attr("cx", d => x(d.X))
-                    .attr("cy", d => y(d.Y))
-                    .attr("r", d => d.highlighted ? HIGHLIGHT_RADIUS : POINT_RADIUS)
-                    .attr("fill", d => d.highlighted ? "#f1a7cd" : "#7e212a")
-                    .attr("stroke", "#fff")
-                    .attr("stroke-width", 0.5)
-                    .attr("tabindex", 0)
-                    .attr("aria-label", d => `${d.Store_Name}, ${d.Store_Type}`)
-                    .attr("role", "button")
-                    .on("mouseover focus", function(event, d) {
-                        handlePointHover(event, d);
-                    })
-                    .on("mouseout blur", function() {
-                        tooltip.style("opacity", 0).attr("aria-hidden", "true");
-                    })
-                    .on("mousemove", handlePointMouseMove)
-                    .on("click keyup", function(event, d) {
-                        if (event.type === "keyup" && event.key !== "Enter" && event.key !== " ") return;
-                        handlePointClick(event, d);
-                    });
-                
-                // Remove any circles that are no longer needed
-                circles.exit().remove();
-                
-                // Handle map clicks for finding closest points
-                svg.on("click keyup", function(event) {
-                    if (event.type === "keyup" && event.key !== "Enter" && event.key !== " ") return;
-                    
-                    const [clickX, clickY] = d3.pointer(event);
-                    
-                    // Convert click coordinates to data space
-                    const dataX = x.invert(clickX);
-                    const dataY = y.invert(clickY);
-                    
-                    findClosestPoints(dataX, dataY);
-                });
-                
-                // Handle hover/focus behavior
-                function handlePointHover(event, d) {
-                    const [mouseX, mouseY] = d3.pointer(event, document.body);
-                    
-                    tooltip.select(".tooltip-title").html(d.Store_Name);
-                    tooltip.select(".tooltip-content").html(`
-                        ${d.Store_Street_Address}<br>
-                        ${d.City}, ${d.State} ${d.Zip_Code}<br>
-                        <b>Type:</b> ${d.Store_Type}
-                    `);
-                    
-                    tooltip
-                        .style("left", (mouseX + 15) + "px")
-                        .style("top", (mouseY - 15) + "px")
-                        .style("opacity", 1)
-                        .attr("aria-hidden", "false");
-                }
-                
-                function handlePointMouseMove(event) {
-                    const [mouseX, mouseY] = d3.pointer(event, document.body);
-                    tooltip
-                        .style("left", (mouseX + 15) + "px")
-                        .style("top", (mouseY - 15) + "px");
-                }
-                
-                function handlePointClick(event, d) {
-                    findClosestPoints(d.X, d.Y);
-                }
-            }
+                findClosestPoints(data, dataX, dataY, x, y);
+            }, 50);
+        }
+        
+        function findClosestPoints(data, x, y, xScale, yScale) {
+            // Calculate distances
+            const closestPoints = [];
             
-            function findClosestPoints(x, y) {
-                // Calculate distances
-                const distances = data.map(d => ({
-                    ...d,
-                    distance: Math.sqrt(Math.pow(d.X - x, 2) + Math.pow(d.Y - y, 2))
-                }));
-                
-                // Get 10 closest points
-                const closestPoints = distances
-                    .sort((a, b) => a.distance - b.distance)
-                    .slice(0, 10);
-                
-                // Reset all points
-                data.forEach(d => d.highlighted = false);
-                
-                // Mark closest points as highlighted
-                closestPoints.forEach(point => {
-                    const dataPoint = data.find(d => d.X === point.X && d.Y === point.Y);
-                    if (dataPoint) dataPoint.highlighted = true;
-                });
-                
-                // Update the display
-                g.selectAll("circle")
-                    .attr("fill", d => d.highlighted ? "#f1a7cd" : "#7e212a")
-                    .attr("r", d => d.highlighted ? HIGHLIGHT_RADIUS : POINT_RADIUS);
-                
-                // Update sidebar
-                updateSidebar(closestPoints);
-            }
+            // First pass: Calculate distances and keep track of the 10 closest
+            let maxDist = Infinity;
             
-            // Initial render
-            updateMapSize();
+            data.forEach(d => {
+                // Reset highlight state
+                d.highlighted = false;
+                
+                const dist = Math.sqrt(Math.pow(d.X - x, 2) + Math.pow(d.Y - y, 2));
+                
+                if (closestPoints.length < 10) {
+                    closestPoints.push({...d, distance: dist});
+                    if (dist > maxDist) maxDist = dist;
+                } else if (dist < maxDist) {
+                    // Replace the furthest point in our current set
+                    const maxIndex = closestPoints.findIndex(p => p.distance === maxDist);
+                    closestPoints[maxIndex] = {...d, distance: dist};
+                    
+                    // Find new maxDist
+                    maxDist = Math.max(...closestPoints.map(p => p.distance));
+                }
+            });
             
-            // Add resize handler
-            window.addEventListener("resize", updateMapSize);
-        });
+            // Sort the closest points
+            closestPoints.sort((a, b) => a.distance - b.distance);
+            
+            // Mark closest points as highlighted
+            closestPoints.forEach(point => {
+                const dataPoint = data.find(d => d.X === point.X && d.Y === point.Y);
+                if (dataPoint) dataPoint.highlighted = true;
+            });
+            
+            // Update the visual display efficiently
+            g.selectAll("circle")
+                .attr("fill", d => d.highlighted ? "#f1a7cd" : "#7e212a")
+                .attr("r", d => d.highlighted ? HIGHLIGHT_RADIUS : POINT_RADIUS);
+            
+            // Update sidebar
+            updateSidebar(closestPoints);
+            
+            // Reset processing flag
+            isProcessing = false;
+        }
         
         // Function to update sidebar content
         function updateSidebar(stores) {
             const container = document.getElementById("closest-stores");
-            container.innerHTML = "";
+            
+            // Create a document fragment to minimize DOM manipulations
+            const fragment = document.createDocumentFragment();
             
             // Hide instructions when we have results
             document.getElementById("map-instructions").style.display = "none";
@@ -356,8 +456,12 @@
                 storeElement.appendChild(nameElement);
                 storeElement.appendChild(addressElement);
                 storeElement.appendChild(typeElement);
-                container.appendChild(storeElement);
+                fragment.appendChild(storeElement);
             });
+            
+            // Clear and update the container in one operation
+            container.innerHTML = "";
+            container.appendChild(fragment);
         }
     </script>
 </body>
