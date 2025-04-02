@@ -257,7 +257,7 @@
                 .scaleExtent([1, 20])
                 .on("zoom", (event) => {
                     currentTransform = event.transform;
-                    g.attr("transform", currentTransform);
+                    g.attr("transform", event.transform); // Fix: Use event.transform directly
                     updatePointSizes();
                 });
                 
@@ -326,19 +326,12 @@
             function zoomToFocusPoint(scaleFactor) {
                 if (!focusPoint) return;
                 
-                // Calculate target center in screen coordinates
-                const targetX = x(focusPoint.x);
-                const targetY = y(focusPoint.y);
-                
-                // Calculate target transform for centering and zooming
+                // Fix: Use D3's transform methods properly
                 const newScale = currentTransform.k * scaleFactor;
-                const newX = width / 2 - targetX * newScale;
-                const newY = height / 2 - targetY * newScale;
-                
-                // Create new transform
                 const newTransform = d3.zoomIdentity
-                    .translate(newX, newY)
-                    .scale(newScale);
+                    .translate(width / 2, height / 2)
+                    .scale(newScale)
+                    .translate(-x(focusPoint.x), -y(focusPoint.y));
                 
                 // Animate to the new transform
                 svg.transition().duration(500)
