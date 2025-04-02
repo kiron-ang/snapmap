@@ -61,34 +61,6 @@
             margin-top: 5px;
         }
 
-        .zoom-controls {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .zoom-btn {
-            width: 40px;
-            height: 40px;
-            background: #ffb082;
-            border: 1px solid #7e212a;
-            color: #7e212a;
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .zoom-btn:hover {
-            background: #ffa06c;
-        }
-
         .title-container {
             background-color: #ffb082;
             padding: 8px 20px;
@@ -167,36 +139,11 @@
         // Add the SVG to the container
         mapContainer.appendChild(svg.node());
 
-        // Add zoom controls
-        const zoomControls = document.createElement("div");
-        zoomControls.className = "zoom-controls";
-
-        const zoomInBtn = document.createElement("button");
-        zoomInBtn.className = "zoom-btn";
-        zoomInBtn.innerHTML = "+";
-
-        const zoomOutBtn = document.createElement("button");
-        zoomOutBtn.className = "zoom-btn";
-        zoomOutBtn.innerHTML = "-";
-
-        const resetBtn = document.createElement("button");
-        resetBtn.className = "zoom-btn";
-        resetBtn.innerHTML = "↺";
-
-        zoomControls.appendChild(zoomInBtn);
-        zoomControls.appendChild(zoomOutBtn);
-        zoomControls.appendChild(resetBtn);
-        mapContainer.appendChild(zoomControls);
-
         // Setup tooltip
         const tooltip = d3.select("#tooltip");
 
         // Load data
         d3.csv("data.csv", d3.autoType).then(data => {
-            // Track current state
-            let currentTransform = d3.zoomIdentity;
-            let focusPoint = null;
-
             // Create scales
             const x = d3.scaleLinear()
             .domain(d3.extent(data, d => d.X)).nice()
@@ -210,9 +157,8 @@
             const g = svg.append("g");
 
             // Set constant sizes
-            const BASE_RADIUS = 2;
-            const HIGHLIGHT_BASE_RADIUS = 3;
-            const MAX_RADIUS = 12;
+            const POINT_RADIUS = 2;
+            const HIGHLIGHT_RADIUS = 3;
 
             // Draw points
             const circles = g.selectAll("circle")
@@ -220,7 +166,7 @@
             .join("circle")
             .attr("cx", d => x(d.X))
             .attr("cy", d => y(d.Y))
-            .attr("r", BASE_RADIUS)
+            .attr("r", POINT_RADIUS)
             .attr("fill", "#7e212a")
             .attr("stroke", "#f8f1e9")
             .attr("stroke-width", 1)
@@ -252,44 +198,13 @@
                 .style("top", (mouseY - 15) + "px");
             });
 
-            // Setup zoom behavior
-            const zoom = d3.zoom()
-            .scaleExtent([1, 20])
-            .on("zoom", (event) => {
-                currentTransform = event.transform;
-                g.attr("transform", event.transform); // Fix: Use event.transform directly
-                updatePointSizes();
-            });
-
-            svg.call(zoom);
-
-            // Function to update just the point sizes based on zoom level
-            function updatePointSizes() {
-                circles
-                .attr("r", d => d.highlighted ?
-                calculateRadius(HIGHLIGHT_BASE_RADIUS) :
-                calculateRadius(BASE_RADIUS));
-            }
-
-            // Function to calculate point size based on zoom level
-            function calculateRadius(baseRadius) {
-                const adjustedRadius = baseRadius * Math.sqrt(currentTransform.k);
-                return Math.min(adjustedRadius, MAX_RADIUS);
-            }
-
             // Handle map clicks
             svg.on("click", function(event) {
                 const [clickX, clickY] = d3.pointer(event);
 
-                // Store the actual coordinate in data space for zooming
-                focusPoint = {
-                    x: currentTransform.invertX(clickX),
-                    y: currentTransform.invertY(clickY)
-                };
-
                 // Convert click coordinates to data space
-                const dataX = x.invert(currentTransform.invertX(clickX));
-                const dataY = y.invert(currentTransform.invertY(clickY));
+                const dataX = x.invert(clickX);
+                const dataY = y.invert(clickY);
 
                 // Calculate distances
                 const distances = data.map(d => ({
@@ -314,57 +229,10 @@
                 // Update the display
                 circles
                 .attr("fill", d => d.highlighted ? "#f1a7cd" : "#7e212a")
-                .attr("r", d => d.highlighted ?
-                calculateRadius(HIGHLIGHT_BASE_RADIUS) :
-                calculateRadius(BASE_RADIUS));
+                .attr("r", d => d.highlighted ? HIGHLIGHT_RADIUS : POINT_RADIUS);
 
                 // Update sidebar
                 updateSidebar(closestPoints);
-            });
-
-            // Function to zoom to focus point with a specific scale factor
-            function zoomToFocusPoint(scaleFactor) {
-                if (!focusPoint) return;
-
-                const newScale = currentTransform.k * scaleFactor;
-
-                // Calculate new center point coordinates in screen space
-                const focusPointScreen = {
-                    x: x(focusPoint.x),
-                    y: y(focusPoint.y)
-                };
-
-                // Calculate new transform that keeps the focus point centered
-                const newTransform = d3.zoomIdentity
-                .translate(width/2 - focusPointScreen.x * newScale,
-                height/2 - focusPointScreen.y * newScale)
-                .scale(newScale);
-
-                // Animate to the new transform
-                svg.transition().duration(500)
-                .call(zoom.transform, newTransform);
-            }
-
-            // Connect zoom buttons
-            zoomInBtn.addEventListener("click", () => {
-                if (focusPoint) {
-                    zoomToFocusPoint(1.5);
-                } else {
-                    svg.transition().duration(300).call(zoom.scaleBy, 1.5);
-                }
-            });
-
-            zoomOutBtn.addEventListener("click", () => {
-                if (focusPoint) {
-                    zoomToFocusPoint(0.75);
-                } else {
-                    svg.transition().duration(300).call(zoom.scaleBy, 0.75);
-                }
-            });
-
-            resetBtn.addEventListener("click", () => {
-                focusPoint = null;
-                svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
             });
         });
 
