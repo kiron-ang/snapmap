@@ -1,0 +1,1 @@
+"SNAP Map Texas" is an interactive map visualization I made to help people find retailers that accept SNAP in the state of Texas. It is available at 
