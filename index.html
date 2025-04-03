@@ -25,6 +25,8 @@
             color: var(--primary-color);
             line-height: 1.5;
             padding: 1rem;
+            -webkit-text-size-adjust: 100%;
+            -webkit-font-smoothing: antialiased;
         }
 
         .sr-only {
@@ -67,6 +69,9 @@
             width: 100%;
             aspect-ratio: 1/1;
             max-height: 70vh;
+            touch-action: none; /* Prevent default touch behaviors */
+            -webkit-user-select: none; /* Safari */
+            user-select: none;
         }
 
         .map-container svg {
@@ -119,6 +124,7 @@
             color: var(--primary-color);
             font-size: 0.9rem;
             z-index: 1000;
+            transform: translate3d(0,0,0); /* Force GPU acceleration */
         }
 
         .tooltip-title {
@@ -158,6 +164,7 @@
             cursor: pointer;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
             transition: background-color 0.2s;
+            -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
         }
 
         .zoom-btn:hover {
@@ -249,13 +256,30 @@
         // Track if we're currently processing a click to prevent multiple rapid clicks
         let isProcessing = false;
         
-        // Set up zoom behavior
+        // Track last touch time to prevent double processing
+        let lastTouchTime = 0;
+        
+        // Cache for storing calculated point data to improve performance
+        const pointDataCache = new Map();
+        
+        // Set up zoom behavior with improved performance for mobile
         const zoom = d3.zoom()
             .scaleExtent([1, 8])
+            .on("start", () => {
+                // Hide tooltip during zoom operations
+                tooltip.style("opacity", 0)
+                    .attr("aria-hidden", "true");
+            })
             .on("zoom", (event) => {
-                g.attr("transform", event.transform);
+                // Use transform3d for better performance on mobile
+                g.style("transform", `translate3d(${event.transform.x}px, ${event.transform.y}px, 0) scale(${event.transform.k})`)
+                    .style("transform-origin", "0 0");
                 
-                // Adjust point size based on zoom level
+                // Only update radius on zoom end for better performance
+                currentTransform = event.transform;
+            })
+            .on("end", (event) => {
+                // Update point size based on zoom level at the end of zoom
                 const zoomLevel = event.transform.k;
                 const pointRadius = POINT_RADIUS / Math.sqrt(zoomLevel);
                 const highlightRadius = HIGHLIGHT_RADIUS / Math.sqrt(zoomLevel);
@@ -264,26 +288,35 @@
                     .attr("r", d => d.highlighted ? highlightRadius : pointRadius);
             });
         
-        // Apply zoom behavior to SVG
-        svg.call(zoom);
+        // Apply zoom behavior to SVG with optimized settings for mobile
+        svg.call(zoom)
+            .style("touch-action", "none") // Disable browser's touch actions
+            .on("touchstart touchmove", function(event) {
+                if (event.touches && event.touches.length > 1) {
+                    event.preventDefault(); // Prevent default only for multi-touch
+                }
+            }, { passive: false });
         
         // Initialize transform state for tracking
         let currentTransform = d3.zoomIdentity;
         
-        // Set up zoom controls
-        document.getElementById("zoom-in").addEventListener("click", () => {
+        // Set up zoom controls with improved touch handling
+        document.getElementById("zoom-in").addEventListener("click", (e) => {
+            e.preventDefault();
             svg.transition()
                 .duration(250)
                 .call(zoom.scaleBy, 1.5);
         });
         
-        document.getElementById("zoom-out").addEventListener("click", () => {
+        document.getElementById("zoom-out").addEventListener("click", (e) => {
+            e.preventDefault();
             svg.transition()
                 .duration(250)
                 .call(zoom.scaleBy, 0.667);
         });
         
-        document.getElementById("zoom-reset").addEventListener("click", () => {
+        document.getElementById("zoom-reset").addEventListener("click", (e) => {
+            e.preventDefault();
             svg.transition()
                 .duration(350)
                 .call(zoom.transform, d3.zoomIdentity);
@@ -343,31 +376,39 @@
                 }, 250);
             });
             
-            // Touch event optimization for mobile
-            let touchTimer;
+            // Improved touch event handling for iOS Safari
             svg.node().addEventListener("touchstart", (event) => {
-                // Clear any existing timer
-                clearTimeout(touchTimer);
-                
-                // Prevent default to avoid double events
-                event.preventDefault();
+                // Prevent default only if we're not on a zoom control
+                if (!event.target.closest('.zoom-btn')) {
+                    event.preventDefault();
+                }
                 
                 if (isProcessing) return;
                 
-                // Set a timeout to handle the touch after a short delay
-                touchTimer = setTimeout(() => {
-                    const touch = event.touches[0];
-                    const rect = svg.node().getBoundingClientRect();
-                    const touchX = touch.clientX - rect.left;
-                    const touchY = touch.clientY - rect.top;
-                    
-                    // Account for the current zoom transform
-                    const transform = d3.zoomTransform(svg.node());
-                    const adjustedX = (touchX - transform.x) / transform.k;
-                    const adjustedY = (touchY - transform.y) / transform.k;
-                    
+                // Debounce touch events
+                const now = Date.now();
+                if (now - lastTouchTime < 300) return;
+                lastTouchTime = now;
+                
+                // Hide any existing tooltip
+                tooltip.style("opacity", 0)
+                    .attr("aria-hidden", "true");
+                
+                // Get touch coordinates
+                const touch = event.touches[0];
+                const rect = svg.node().getBoundingClientRect();
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+                
+                // Account for the current zoom transform
+                const transform = d3.zoomTransform(svg.node());
+                const adjustedX = (touchX - transform.x) / transform.k;
+                const adjustedY = (touchY - transform.y) / transform.k;
+                
+                // Process with slight delay to improve touch responsiveness
+                setTimeout(() => {
                     handleMapInteraction(data, adjustedX, adjustedY, xExtent, yExtent);
-                }, 50);
+                }, 10);
             }, { passive: false });
             
             // Regular click handler for desktop
@@ -404,13 +445,21 @@
             // Clear existing circles
             g.selectAll("circle").remove();
             
+            // Reuse existing element for better performance
+            g.style("transform", "translate3d(0,0,0) scale(1)")
+                .style("transform-origin", "0 0");
+            
             // Process in batches
             const batch = 500; // Process in batches for better performance
             const totalBatches = Math.ceil(data.length / batch);
             
-            // Process in batches
-            for (let b = 0; b < totalBatches; b++) {
-                const start = b * batch;
+            // Process in batches with requestAnimationFrame for smoother rendering
+            let batchIndex = 0;
+            
+            function processBatch() {
+                if (batchIndex >= totalBatches) return;
+                
+                const start = batchIndex * batch;
                 const end = Math.min(start + batch, data.length);
                 const batchData = data.slice(start, end);
                 
@@ -427,9 +476,11 @@
                     .attr("aria-label", d => `${d.Store_Name}, ${d.Store_Type}`)
                     .attr("role", "button");
                 
-                // Add event handlers only to a smaller subset for performance
+                // Add event handlers
                 batchCircles.each(function(d) {
                     const circle = d3.select(this);
+                    
+                    // Add click handler
                     circle.on("click", function(event) {
                         if (isProcessing) return;
                         event.stopPropagation();
@@ -441,8 +492,39 @@
                         
                         handleMapInteraction(data, adjustedX, adjustedY, xExtent, yExtent);
                     });
+                    
+                    // Add mouseover event for tooltip (desktop)
+                    circle.on("mouseover", function(event) {
+                        const tooltipHtml = `
+                            <div class="tooltip-title">${d.Store_Name}</div>
+                            <div>${d.Store_Street_Address}, ${d.City}, ${d.State} ${d.Zip_Code}</div>
+                            <div>Type: ${d.Store_Type}</div>
+                        `;
+                        
+                        tooltip.html(tooltipHtml)
+                            .style("left", (event.pageX + 15) + "px")
+                            .style("top", (event.pageY - 28) + "px")
+                            .attr("aria-hidden", "false")
+                            .style("opacity", 1);
+                    });
+                    
+                    // Add mouseout event to hide tooltip
+                    circle.on("mouseout", function() {
+                        tooltip.style("opacity", 0)
+                            .attr("aria-hidden", "true");
+                    });
                 });
+                
+                batchIndex++;
+                
+                // Schedule next batch with slight delay to prevent UI blocking
+                if (batchIndex < totalBatches) {
+                    setTimeout(processBatch, 0);
+                }
             }
+            
+            // Start batch processing
+            processBatch();
             
             // Reset zoom transform when map size changes
             svg.call(zoom.transform, d3.zoomIdentity);
@@ -484,6 +566,16 @@
             // First pass: Calculate distances and keep track of the 10 closest
             let maxDist = Infinity;
             
+            // Check if we have cached results for these coordinates (within a small threshold)
+            const cacheKey = `${x.toFixed(2)},${y.toFixed(2)}`;
+            const cachedResult = pointDataCache.get(cacheKey);
+            
+            if (cachedResult) {
+                // Use cached results
+                updateVisualDisplay(cachedResult);
+                return;
+            }
+            
             data.forEach(d => {
                 // Reset highlight state
                 d.highlighted = false;
@@ -506,77 +598,97 @@
             // Sort the closest points
             closestPoints.sort((a, b) => a.distance - b.distance);
             
-            // Mark closest points as highlighted
-            closestPoints.forEach(point => {
-                const dataPoint = data.find(d => d.X === point.X && d.Y === point.Y);
-                if (dataPoint) dataPoint.highlighted = true;
-            });
+            // Cache the results (store a maximum of 20 results)
+            if (pointDataCache.size > 20) {
+                // Remove the oldest entry
+                const firstKey = pointDataCache.keys().next().value;
+                pointDataCache.delete(firstKey);
+            }
+            pointDataCache.set(cacheKey, closestPoints);
             
-            // Get current zoom transform to adjust point sizes
-            const transform = d3.zoomTransform(svg.node());
-            const zoomLevel = transform.k;
-            const pointRadius = POINT_RADIUS / Math.sqrt(zoomLevel);
-            const highlightRadius = HIGHLIGHT_RADIUS / Math.sqrt(zoomLevel);
+            // Mark closest points as highlighted and update display
+            updateVisualDisplay(closestPoints);
             
-            // Update the visual display efficiently
-            g.selectAll("circle")
-                .attr("fill", d => d.highlighted ? "#f1a7cd" : "#7e212a")
-                .attr("r", d => d.highlighted ? highlightRadius : pointRadius);
-            
-            // Update sidebar
-            updateSidebar(closestPoints);
-            
-            // Reset processing flag
-            isProcessing = false;
-            
-            // Auto-zoom to the area with highlighted points if there are any
-            if (closestPoints.length > 0) {
-                // Calculate the bounding box of highlighted points
-                const highlightedX = closestPoints.map(p => xScale(p.X));
-                const highlightedY = closestPoints.map(p => yScale(p.Y));
+            function updateVisualDisplay(points) {
+                // Reset all highlights
+                data.forEach(d => d.highlighted = false);
                 
-                const minX = Math.min(...highlightedX) - 50;
-                const maxX = Math.max(...highlightedX) + 50;
-                const minY = Math.min(...highlightedY) - 50;
-                const maxY = Math.max(...highlightedY) + 50;
+                // Set highlights for closest points
+                points.forEach(point => {
+                    const dataPoint = data.find(d => d.X === point.X && d.Y === point.Y);
+                    if (dataPoint) dataPoint.highlighted = true;
+                });
                 
-                // Get the first point for centering if we don't have enough points for a proper bounds
-                const firstPoint = closestPoints[0];
-                const firstX = xScale(firstPoint.X);
-                const firstY = yScale(firstPoint.Y);
+                // Get current zoom transform to adjust point sizes
+                const transform = d3.zoomTransform(svg.node());
+                const zoomLevel = transform.k;
+                const pointRadius = POINT_RADIUS / Math.sqrt(zoomLevel);
+                const highlightRadius = HIGHLIGHT_RADIUS / Math.sqrt(zoomLevel);
                 
-                // If we have multiple points, zoom to fit them all
-                if (closestPoints.length > 1 && maxX - minX > 10 && maxY - minY > 10) {
-                    const width = mapContainer.clientWidth;
-                    const height = mapContainer.clientHeight;
+                // Update the visual display efficiently
+                g.selectAll("circle")
+                    .attr("fill", d => d.highlighted ? "#f1a7cd" : "#7e212a")
+                    .attr("r", d => d.highlighted ? highlightRadius : pointRadius);
+                
+                // Update sidebar
+                updateSidebar(points);
+                
+                // Reset processing flag
+                isProcessing = false;
+                
+                // Auto-zoom to the area with highlighted points if there are any
+                if (points.length > 0) {
+                    // Calculate the bounding box of highlighted points
+                    const highlightedX = points.map(p => xScale(p.X));
+                    const highlightedY = points.map(p => yScale(p.Y));
                     
-                    const dx = maxX - minX;
-                    const dy = maxY - minY;
-                    const x = (minX + maxX) / 2;
-                    const y = (minY + maxY) / 2;
+                    const minX = Math.min(...highlightedX) - 50;
+                    const maxX = Math.max(...highlightedX) + 50;
+                    const minY = Math.min(...highlightedY) - 50;
+                    const maxY = Math.max(...highlightedY) + 50;
                     
-                    // Calculate zoom scale to fit the points
-                    const scale = 0.8 * Math.min(width / dx, height / dy);
+                    // Get the first point for centering if we don't have enough points for a proper bounds
+                    const firstPoint = points[0];
+                    const firstX = xScale(firstPoint.X);
+                    const firstY = xScale(firstPoint.Y);
                     
-                    // Limit the zoom level
-                    const boundedScale = Math.min(scale, 4);
-                    
-                    // Apply the zoom transform with transition
-                    svg.transition()
-                        .duration(500)
-                        .call(zoom.transform, d3.zoomIdentity
-                            .translate(width / 2, height / 2)
-                            .scale(boundedScale)
-                            .translate(-x, -y));
-                } 
-                // If we have only one point or points are too close, just center on the first point
-                else {
-                    svg.transition()
-                        .duration(500)
-                        .call(zoom.transform, d3.zoomIdentity
-                            .translate(mapContainer.clientWidth / 2, mapContainer.clientHeight / 2)
-                            .scale(3)
-                            .translate(-firstX, -firstY));
+                    // If we have multiple points, zoom to fit them all
+                    if (points.length > 1 && maxX - minX > 10 && maxY - minY > 10) {
+                        const width = mapContainer.clientWidth;
+                        const height = mapContainer.clientHeight;
+                        
+                        const dx = maxX - minX;
+                        const dy = maxY - minY;
+                        const x = (minX + maxX) / 2;
+                        const y = (minY + maxY) / 2;
+                        
+                        // Calculate zoom scale to fit the points
+                        const scale = 0.8 * Math.min(width / dx, height / dy);
+                        
+                        // Limit the zoom level
+                        const boundedScale = Math.min(scale, 4);
+                        
+                        // Apply the zoom transform with transition - use shorter duration on mobile
+                        const duration = 'ontouchstart' in window ? 300 : 500;
+                        
+                        svg.transition()
+                            .duration(duration)
+                            .call(zoom.transform, d3.zoomIdentity
+                                .translate(width / 2, height / 2)
+                                .scale(boundedScale)
+                                .translate(-x, -y));
+                    } 
+                    // If we have only one point or points are too close, just center on the first point
+                    else {
+                        const duration = 'ontouchstart' in window ? 300 : 500;
+                        
+                        svg.transition()
+                            .duration(duration)
+                            .call(zoom.transform, d3.zoomIdentity
+                                .translate(mapContainer.clientWidth / 2, mapContainer.clientHeight / 2)
+                                .scale(3)
+                                .translate(-firstX, -firstY));
+                    }
                 }
             }
         }
@@ -585,7 +697,7 @@
         function updateSidebar(stores) {
             const container = document.getElementById("closest-stores");
             
-            // Create a document fragment to minimize DOM manipulations
+            // Use document fragment to minimize DOM manipulations
             const fragment = document.createDocumentFragment();
             
             // Hide instructions when we have results
